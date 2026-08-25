@@ -383,16 +383,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const query = globalSearch.value.trim();
             if (query.length < 2) { closeSearch(); return; }
             searchTimer = setTimeout(async () => {
-                searchRequest = new AbortController();
+                const currentRequest = new AbortController();
+                searchRequest = currentRequest;
                 searchSpinner.hidden = false;
                 try {
-                    const response = await fetch(`${window.BASE_URL}/search?q=${encodeURIComponent(query)}`, {signal: searchRequest.signal});
+                    const response = await fetch(`${window.BASE_URL}/search?q=${encodeURIComponent(query)}`, {signal: currentRequest.signal});
+                    if (!response.ok) throw new Error(`Search failed with HTTP ${response.status}`);
                     const result = await response.json();
                     if (globalSearch.value.trim() === query) renderSearch(result.results || [], query);
                 } catch (error) {
                     if (error.name !== 'AbortError') HRIS.flash('Search is temporarily unavailable.', 'error');
                 } finally {
-                    searchSpinner.hidden = true;
+                    if (searchRequest === currentRequest) {
+                        searchSpinner.hidden = true;
+                        searchRequest = null;
+                    }
                 }
             }, 220);
         });
