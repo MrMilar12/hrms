@@ -49,6 +49,42 @@ const HRIS = (() => {
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
+    // ---- Password-protected Profile and PDS editing ----
+    document.querySelectorAll('[data-record-protected]').forEach(region => {
+        if (region.dataset.recordUnlocked === 'true') return;
+        region.classList.add('record-is-locked');
+        region.querySelectorAll('input, select, textarea, button').forEach(control => { control.disabled = true; });
+    });
+    document.querySelectorAll('[data-record-unlock-form]').forEach(form => form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const banner = form.closest('[data-record-lock-banner]');
+        const button = form.querySelector('[type="submit"]');
+        button.disabled = true;
+        const formData = new FormData(form);
+        formData.append('scope', banner.dataset.scope);
+        try {
+            const result = await HRIS.postForm(`${window.BASE_URL}/records/unlock`, formData);
+            HRIS.flash(result.message || result.error, result.success ? 'success' : 'error');
+            if (result.success) window.setTimeout(() => window.location.reload(), 350);
+        } catch (_) {
+            HRIS.flash('Unable to verify your password.', 'error');
+        } finally { button.disabled = false; }
+    }));
+    document.querySelectorAll('[data-record-lock-action]').forEach(button => button.addEventListener('click', async () => {
+        const banner = button.closest('[data-record-lock-banner]');
+        button.disabled = true;
+        try {
+            const formData = new FormData();
+            formData.append('scope', banner.dataset.scope);
+            const result = await HRIS.postForm(`${window.BASE_URL}/records/lock`, formData);
+            HRIS.flash(result.message || result.error, result.success ? 'success' : 'error');
+            if (result.success) window.setTimeout(() => window.location.reload(), 300);
+        } catch (_) {
+            HRIS.flash('Unable to lock the record.', 'error');
+            button.disabled = false;
+        }
+    }));
+
     // ---- Appearance settings ----
     const appearanceRoot = document.querySelector('[data-appearance-settings]');
     if (appearanceRoot) {

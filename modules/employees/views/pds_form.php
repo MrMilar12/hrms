@@ -14,11 +14,14 @@
 /** @var array $characterReferences */
 /** @var array $completion */
 /** @var int $completionPercent */
+/** @var bool $isUnlocked */
 
 function pv($arr, $key, $default = '') { return htmlspecialchars((string) ($arr[$key] ?? $default)); }
 
 require MODULES_PATH . '/shared/views/header.php';
 ?>
+<?php $recordLockScope = 'pds'; require MODULES_PATH . '/shared/views/record_lock.php'; ?>
+<div data-record-protected data-record-unlocked="<?= $isUnlocked ? 'true' : 'false' ?>">
 <?php if (!empty($_GET['required'])): ?>
     <div class="glass-card" style="border-color: rgba(220, 38, 38, 0.35);">
         <div style="display:flex; gap:0.75rem; align-items:flex-start;">
@@ -311,6 +314,7 @@ require MODULES_PATH . '/shared/views/header.php';
     </div>
 </div>
 
+</div>
 <script>
 // Field definitions per repeating section: [name, label, type]
 const REPEATING_FIELD_DEFS = {

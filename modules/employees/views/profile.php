@@ -10,13 +10,15 @@
 /** @var array $positions */
 /** @var array|null $highestEducation */
 /** @var array $eligibilities */
+/** @var bool $isUnlocked */
 require MODULES_PATH . '/shared/views/header.php';
 $info = $personalInfo ?? [];
 $residential = $addresses['Residential'] ?? [];
 $work = $workProfile ?? ['personnel_type' => 'Non-Teaching'];
 $fullName = trim(($info['first_name'] ?? '') . ' ' . ($info['middle_name'] ?? '') . ' ' . ($info['surname'] ?? '')) ?: Auth::displayName();
 ?>
-<div class="profile-layout">
+<?php $recordLockScope = 'profile'; require MODULES_PATH . '/shared/views/record_lock.php'; ?>
+<div class="profile-layout" data-record-protected data-record-unlocked="<?= $isUnlocked ? 'true' : 'false' ?>">
     <aside class="profile-summary">
         <section class="employee-id-card" aria-label="Employee identification card">
             <div class="employee-id-pattern"></div>
