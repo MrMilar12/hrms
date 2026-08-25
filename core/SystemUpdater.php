@@ -7,6 +7,8 @@ class SystemUpdater
 
     public static function status(): array
     {
+        return PortableUpdater::status();
+        /* Legacy Git deployment implementation retained for rollback compatibility. */
         $localSha = trim(self::run(['git', 'rev-parse', 'HEAD'])['output']);
         $remoteResult = self::run(['git', 'ls-remote', self::REMOTE, 'refs/heads/' . self::BRANCH], false, 20);
         if (!$remoteResult['success']) throw new RuntimeException('Unable to check GitHub: ' . $remoteResult['output']);
@@ -28,6 +30,8 @@ class SystemUpdater
 
     public static function apply(int $developerId): array
     {
+        return PortableUpdater::apply($developerId);
+        /* Legacy Git deployment implementation retained for rollback compatibility. */
         self::ensureStorage();
         $lockHandle = fopen(STORAGE_PATH . '/cache/system-update.lock', 'c+');
         if (!$lockHandle || !flock($lockHandle, LOCK_EX | LOCK_NB)) throw new RuntimeException('Another system update is already running.');

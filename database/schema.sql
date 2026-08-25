@@ -170,6 +170,13 @@ CREATE TABLE system_deployments (
     INDEX idx_system_deployments_started (started_at)
 ) ENGINE=InnoDB;
 
+CREATE TABLE system_update_state (
+    id TINYINT UNSIGNED PRIMARY KEY,
+    deployed_commit CHAR(40) NULL,
+    deployed_version VARCHAR(30) NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
 CREATE TABLE rate_limits (
     bucket_hash CHAR(64) NOT NULL,
     window_start DATETIME NOT NULL,

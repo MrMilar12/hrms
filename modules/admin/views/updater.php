@@ -6,6 +6,7 @@ require MODULES_PATH . '/shared/views/header.php';
 $available = !empty($updateStatus['update_available']);
 $clean = !empty($updateStatus['working_tree_clean']);
 $writable = !empty($updateStatus['deployment_writable']);
+$versionReady = !empty($updateStatus['version_ready']);
 ?>
 <section class="updater-page">
     <div class="glass-card updater-hero">
@@ -19,8 +20,8 @@ $writable = !empty($updateStatus['deployment_writable']);
             <div><h2>Unable to check GitHub</h2><p><?= htmlspecialchars($statusError) ?></p></div>
             <button type="button" class="btn btn-secondary" onclick="window.location.reload()">Try again</button>
         <?php elseif ($available): ?>
-            <div><span class="updater-signal"></span><h2>New version detected</h2><p>Commit <code><?= htmlspecialchars(substr($updateStatus['remote_sha'], 0, 12)) ?></code> is ready on GitHub.</p><?php if (!$clean): ?><p class="updater-warning">Update is blocked because this server has uncommitted files. Commit and push them first.</p><?php endif; ?><?php if (!$writable): ?><p class="updater-warning">A privileged deployment worker is required because Apache cannot write the repository.</p><?php endif; ?></div>
-            <button type="button" class="btn btn-primary" id="apply-system-update" <?= (!$clean || !$writable) ? 'disabled' : '' ?>>Update now</button>
+            <div><span class="updater-signal"></span><h2>New version detected<?= $versionReady ? ' · v' . htmlspecialchars($updateStatus['new_version']) : '' ?></h2><p>Commit <code><?= htmlspecialchars(substr($updateStatus['remote_sha'], 0, 12)) ?></code> is ready on GitHub.</p><?php if (!$versionReady): ?><p class="updater-warning">Publish the version notification under System Updates before installing these files.</p><?php endif; ?><?php if (!$clean): ?><p class="updater-warning">Update is blocked because this server has uncommitted files. Commit and push them first.</p><?php endif; ?><?php if (!$writable): ?><p class="updater-warning">PHP does not have permission to replace the application files.</p><?php endif; ?></div>
+            <button type="button" class="btn btn-primary" id="apply-system-update" <?= (!$clean || !$writable || !$versionReady) ? 'disabled' : '' ?>>Update now</button>
         <?php else: ?>
             <div><span class="updater-signal current"></span><h2>System is up to date</h2><p>Commit <code><?= htmlspecialchars(substr($updateStatus['local_sha'], 0, 12)) ?></code> matches GitHub.</p></div>
             <button type="button" class="btn btn-secondary" onclick="window.location.reload()">Check again</button>
@@ -34,7 +35,7 @@ $writable = !empty($updateStatus['deployment_writable']);
         <?php if (!$deployments): ?><p class="release-empty">No automatic deployments recorded yet.</p><?php endif; ?>
     </div></div>
 </section>
-<?php if ($available && $clean && $writable): ?><script>
+<?php if ($available && $clean && $writable && $versionReady): ?><script>
 document.getElementById('apply-system-update').addEventListener('click', async function () {
     const confirmation = await Swal.fire({ icon: 'warning', title: 'Install the GitHub update?', html: 'HRMS will enter maintenance mode, back up the database and files, then deploy <strong><?= htmlspecialchars(substr($updateStatus['remote_sha'], 0, 12)) ?></strong>.', showCancelButton: true, confirmButtonText: 'Update now', confirmButtonColor: '#2563eb', allowOutsideClick: false });
     if (!confirmation.isConfirmed) return;

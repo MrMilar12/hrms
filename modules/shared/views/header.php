@@ -89,7 +89,7 @@ if (Auth::check()) {
                 const result = await response.json();
                 if (!result.success) throw new Error(result.error || 'Check failed');
                 label.textContent = result.status.update_available
-                    ? (!result.status.working_tree_clean ? 'Update blocked: local changes' : (!result.status.deployment_writable ? 'Update worker required' : 'New version detected'))
+                    ? (!result.status.version_ready ? 'New update: version required' : (!result.status.deployment_writable ? 'Update permission required' : `Version ${result.status.new_version} ready`))
                     : 'System is up to date';
                 if (result.status.update_available) label.classList.add('system-update-available');
             } catch (error) { label.textContent = 'Unable to check GitHub'; }
