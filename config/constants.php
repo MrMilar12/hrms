@@ -9,7 +9,7 @@ define('UPLOADS_PATH', BASE_PATH . '/uploads');
 define('STORAGE_PATH', BASE_PATH . '/storage');
 
 // Base URL of the app (adjust if deployed in a sub-folder under htdocs).
-define('BASE_URL', '/HRIS/public');
+define('BASE_URL', '/hrms/public');
 
 // Upload limits
 define('MAX_UPLOAD_SIZE', 5 * 1024 * 1024); // 5MB

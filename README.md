@@ -7,7 +7,7 @@ PHP (procedural-core, MVC-organized) + MySQL (InnoDB) + vanilla JS, styled with 
 
 ### Option A — Web installer (recommended)
 
-1. Point your browser at `http://localhost/HRIS/public/install.php`.
+1. Point your browser at `http://localhost/hrms/public/install.php`.
 2. It checks requirements (PHP version, `pdo_mysql`/`gd` extensions, writable `config`/`storage`/`uploads`), then asks for your MySQL credentials and the admin account you want.
 3. On submit it creates the database (if missing), runs `database/schema.sql` + `database/seed.sql`, creates your admin user, and writes `config/app.php` for you.
 4. **Delete or restrict access to `public/install.php` afterward** — it refuses to re-run once `storage/installed.lock` exists, but removing the file is safer.
@@ -22,7 +22,7 @@ PHP (procedural-core, MVC-organized) + MySQL (InnoDB) + vanilla JS, styled with 
    php scripts/seed_admin.php
    ```
 2. **Config** — edit [config/app.php](config/app.php) with your DB credentials (host/user/pass).
-3. **Web server** — point your browser at `http://localhost/HRIS/public/` (XAMPP serves `htdocs`, and `/public` is the front-controller root; `/HRIS/` 302-redirects there). Requires `mod_rewrite` and `AllowOverride All`.
+3. **Web server** — point your browser at `http://localhost/hrms/public/` (XAMPP serves `htdocs`, and `/public` is the front-controller root; `/hrms/` 302-redirects there). Requires `mod_rewrite` and `AllowOverride All`.
 4. **Login** — username `admin`, password `Admin@12345` (set in `scripts/seed_admin.php`) — **change immediately**.
 5. **GD extension** — required for image resizing/thumbnails in `core/Uploader.php`. Enable `extension=gd` in `php.ini` if not already active.
 

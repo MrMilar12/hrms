@@ -25,7 +25,11 @@ class Router
         $path = $this->normalize(parse_url($uri, PHP_URL_PATH));
         // Strip the public base path so routes work regardless of sub-folder depth.
         $base = rtrim(BASE_URL, '/');
-        if ($base !== '' && str_starts_with($path, $base)) {
+        // URL paths on this Windows/XAMPP installation may arrive with a
+        // different directory-name casing (for example /hrms vs /HRMS).
+        // Match the configured base path case-insensitively, while leaving
+        // the application route itself unchanged.
+        if ($base !== '' && strncasecmp($path, $base, strlen($base)) === 0) {
             $path = substr($path, strlen($base));
             $path = $path === '' ? '/' : $path;
         }

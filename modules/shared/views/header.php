@@ -41,7 +41,7 @@ if (Auth::check()) {
         <p class="drawer-kicker">Applications</p>
         <p class="drawer-intro">Choose a workspace to continue.</p>
         <nav class="app-card-grid">
-            <a class="app-nav-card <?= $isActive('/dashboard') ?: $isActive('/HRIS/public/') ?>" href="<?= BASE_URL ?>/dashboard"><span class="app-nav-icon">&#9638;</span><span><strong>Dashboard</strong><small>Overview</small></span></a>
+            <a class="app-nav-card <?= $isActive('/dashboard') ?: $isActive(BASE_URL . '/') ?>" href="<?= BASE_URL ?>/dashboard"><span class="app-nav-icon">&#9638;</span><span><strong>Dashboard</strong><small>Overview</small></span></a>
             <a class="app-nav-card <?= $isActive('/employees') ?>" href="<?= BASE_URL ?>/employees"><span class="app-nav-icon">&#128100;</span><span><strong>Employees</strong><small>People directory</small></span></a>
             <a class="app-nav-card <?= $isActive('/pds') ?>" href="<?= BASE_URL ?>/pds"><span class="app-nav-icon">&#128196;</span><span><strong>PDS</strong><small>Personal data sheet</small></span></a>
             <a class="app-nav-card <?= $isActive('/tasks') ?>" href="<?= BASE_URL ?>/tasks"><span class="app-nav-icon">&#10003;</span><span><strong>Tasks</strong><small>Work board</small></span></a>
