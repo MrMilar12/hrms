@@ -16,11 +16,6 @@ class PortableUpdater
         $remoteSha = (string) ($commit['sha'] ?? '');
         if (!preg_match('/^[a-f0-9]{40}$/', $remoteSha)) throw new RuntimeException('GitHub returned an invalid commit identifier.');
         $workingCopySha = self::gitCommit('HEAD');
-        $trackedRemoteSha = self::gitCommit('refs/remotes/origin/' . self::BRANCH);
-        if ($workingCopySha !== null && $trackedRemoteSha !== null && hash_equals($workingCopySha, $trackedRemoteSha) && !hash_equals($remoteSha, $trackedRemoteSha)) {
-            $remoteSha = $trackedRemoteSha;
-            $commit = ['sha' => $remoteSha, 'commit' => ['message' => 'Current Git deployment synchronized with the updater.']];
-        }
         $state = Database::getInstance()->query('SELECT deployed_commit, deployed_version FROM system_update_state WHERE id = 1')->fetch();
         $localSha = (string) ($state['deployed_commit'] ?? '');
         // A developer may deploy this checkout with Git instead of the web
@@ -61,9 +56,11 @@ class PortableUpdater
         if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) throw new RuntimeException('Another update is already running.');
         $work = STORAGE_PATH . '/cache/update_' . bin2hex(random_bytes(6));
         $backup = null; $installed = [];
-        $status = self::status();
-        $oldVersion = $status['current_version'];
+        $status = [];
+        $oldVersion = self::version();
         try {
+            $status = self::status();
+            $oldVersion = $status['current_version'];
             if (!$status['update_available']) {
                 self::writeProgress(100, 'The system is already up to date.');
                 return ['updated' => false, 'message' => 'The system is already up to date.'];
@@ -73,7 +70,7 @@ class PortableUpdater
             if (!class_exists('ZipArchive')) throw new RuntimeException('The PHP ZIP extension is required.');
             self::baselineCurrentMigrations();
             self::writeProgress(12, 'Preparing the update workspace...');
-            mkdir($work, 0750, true);
+            if (!mkdir($work, 0750, true) && !is_dir($work)) throw new RuntimeException('Unable to create the temporary update workspace.');
             $archive = $work . '/github-update.zip';
             self::writeProgress(25, 'Downloading the update securely...');
             self::download('/zipball/' . $status['remote_sha'], $archive);
@@ -90,14 +87,17 @@ class PortableUpdater
             $installed = self::backupFiles($source, $backup);
             self::writeProgress(68, 'Installing the new application files...');
             self::installArchive($source);
-            file_put_contents(BASE_PATH . '/VERSION', $newVersion . PHP_EOL, LOCK_EX);
+            if (file_put_contents(BASE_PATH . '/VERSION', $newVersion . PHP_EOL, LOCK_EX) === false) {
+                throw new RuntimeException('Unable to update the local VERSION file.');
+            }
             self::writeProgress(82, 'Applying database migrations...');
             $migrations = self::runNewMigrations();
             self::writeProgress(92, 'Running the system health check...');
             self::healthCheck();
             self::saveState($status['remote_sha'], $newVersion);
-            self::publish($developerId, $newVersion, $status['remote_message'], $status['remote_sha']);
             self::logDeployment($developerId, $oldVersion, $newVersion, $status['local_sha'], $status['remote_sha'], 'success', $status['remote_message'], $backup);
+            self::refreshOpcodeCache();
+            self::pruneBackups();
             self::setMaintenance(false);
             self::removeTree($work);
             self::writeProgress(100, "HRMS {$newVersion} was installed successfully.");
@@ -117,7 +117,7 @@ class PortableUpdater
     {
         self::ensureDirectories();
         $cache = STORAGE_PATH . '/cache/github-' . hash('sha256', $path) . '.json';
-        if (is_file($cache) && filemtime($cache) >= time() - 300) {
+        if (is_file($cache) && filemtime($cache) >= time() - 60) {
             $cached = json_decode((string) file_get_contents($cache), true);
             if (is_array($cached)) return $cached;
         }
@@ -233,9 +233,14 @@ class PortableUpdater
             $relative = str_replace('\\', '/', substr($item->getPathname(), strlen($source) + 1));
             if ($item->isDir() || self::preserved($relative) || self::legacyUpdater($relative, $item->getPathname())) continue;
             $target = BASE_PATH . '/' . $relative;
-            if (is_file($target)) $backup->addFile($target, $relative); else $installed[] = $relative;
+            if (is_file($target)) {
+                if (!$backup->addFile($target, $relative)) { $backup->close(); throw new RuntimeException("Unable to back up {$relative}."); }
+            } else $installed[] = $relative;
         }
-        $backup->addFromString('.new-files.json', json_encode($installed)); $backup->close(); return $installed;
+        if (!$backup->addFromString('.new-files.json', json_encode($installed)) || !$backup->close() || !is_file($backupPath) || filesize($backupPath) === 0) {
+            throw new RuntimeException('The application backup could not be finalized.');
+        }
+        return $installed;
     }
 
     private static function installArchive(string $source): void
@@ -249,10 +254,10 @@ class PortableUpdater
             $directory = dirname($target); if (!is_dir($directory) && !mkdir($directory, 0755, true)) throw new RuntimeException("Unable to create the directory for {$relative}.");
             $temporary = $target . '.update-' . bin2hex(random_bytes(3));
             if (!copy($item->getPathname(), $temporary)) throw new RuntimeException("Unable to prepare {$relative}.");
-            if (is_file($target) && is_writable($target)) {
-                $installedOk = copy($temporary, $target); @unlink($temporary);
-            } elseif (is_writable($directory)) {
+            if (is_writable($directory)) {
                 $installedOk = rename($temporary, $target);
+            } elseif (is_file($target) && is_writable($target)) {
+                $installedOk = copy($temporary, $target); @unlink($temporary);
             } else {
                 @unlink($temporary); $installedOk = false;
             }
@@ -267,7 +272,9 @@ class PortableUpdater
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i); if ($name === '.new-files.json') continue;
             $target = BASE_PATH . '/' . $name; if (!is_dir(dirname($target))) mkdir(dirname($target), 0755, true);
-            copy('zip://' . $backupPath . '#' . $name, $target);
+            if (!copy('zip://' . $backupPath . '#' . $name, $target)) {
+                error_log("Updater rollback could not restore {$name}.");
+            }
         }
         $zip->close();
     }
@@ -326,17 +333,6 @@ class PortableUpdater
         foreach (glob(BASE_PATH . '/database/migrations/*.sql') ?: [] as $file) $insert->execute([basename($file)]);
     }
 
-    private static function publish(int $developerId, string $version, string $notes, string $sha): void
-    {
-        $title = 'HRMS Version ' . $version; $notes = trim(strtok($notes, "\n")) ?: 'System improvements and maintenance updates.';
-        $url = 'https://github.com/' . GITHUB_REPOSITORY . '/commit/' . $sha;
-        $stmt = Database::getInstance()->prepare(
-            'INSERT INTO system_releases (version,title,changes,released_at,is_published,created_by,release_url,source_commit)
-             VALUES (?,?,?,NOW(),1,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),changes=VALUES(changes),released_at=NOW(),is_published=1,created_by=VALUES(created_by),release_url=VALUES(release_url),source_commit=VALUES(source_commit)'
-        );
-        $stmt->execute([$version, $title, $notes, $developerId, $url, $sha]);
-    }
-
     private static function logDeployment(int $developerId, ?string $from, ?string $to, ?string $fromSha, ?string $toSha, string $status, string $details, ?string $backup): void
     {
         try { $stmt = Database::getInstance()->prepare('INSERT INTO system_deployments (developer_id,from_version,to_version,from_commit,to_commit,status,details,backup_files) VALUES (?,?,?,?,?,?,?,?)'); $stmt->execute([$developerId,$from,$to,$fromSha,$toSha,$status,$details,$backup]); }
@@ -358,7 +354,20 @@ class PortableUpdater
     private static function setMaintenance(bool $on): void
     { $file = STORAGE_PATH . '/cache/maintenance.json'; if (!$on) { @unlink($file); return; } file_put_contents($file, json_encode(['message'=>'Installing a new HRMS version.','started_at'=>date(DATE_ATOM)]), LOCK_EX); }
     private static function ensureDirectories(): void
-    { foreach ([STORAGE_PATH . '/cache', STORAGE_PATH . '/backups'] as $dir) if (!is_dir($dir)) mkdir($dir,0750,true); }
+    {
+        foreach ([STORAGE_PATH . '/cache', STORAGE_PATH . '/backups'] as $dir) {
+            if (!is_dir($dir) && !mkdir($dir, 0770, true) && !is_dir($dir)) throw new RuntimeException("Unable to create updater directory: {$dir}");
+            if (!is_writable($dir)) throw new RuntimeException("Updater directory is not writable: {$dir}");
+        }
+    }
+    private static function refreshOpcodeCache(): void
+    { if (function_exists('opcache_reset')) @opcache_reset(); }
+    private static function pruneBackups(int $keep = 5): void
+    {
+        $files = glob(STORAGE_PATH . '/backups/*_before_v*.zip') ?: [];
+        usort($files, static fn(string $a, string $b): int => filemtime($b) <=> filemtime($a));
+        foreach (array_slice($files, $keep) as $file) @unlink($file);
+    }
     private static function writeProgress(int $percent, string $message): void
     { self::ensureDirectories(); file_put_contents(STORAGE_PATH . '/cache/system-update-progress.json', json_encode(['percent'=>$percent,'message'=>$message,'updated_at'=>date(DATE_ATOM)]), LOCK_EX); }
     private static function removeTree(string $dir): void

@@ -75,6 +75,7 @@ $router->post('/logout', fn() => (new AuthController())->logout());
 // ---- Dashboard ----
 $router->get('/', fn() => (new DashboardController())->index());
 $router->get('/dashboard', fn() => (new DashboardController())->index());
+$router->get('/settings', fn() => (new SettingsController())->index());
 $router->get('/updates', fn() => (new UpdateController())->index());
 $router->post('/updates/acknowledge', fn() => (new UpdateController())->acknowledge());
 
