@@ -527,6 +527,7 @@ class AdminController extends Controller
         $this->view('admin', 'releases', [
             'pageTitle' => 'System Updates', 'releases' => $releases,
             'githubStatus' => $githubStatus, 'githubError' => $githubError,
+            'deployments' => SystemUpdater::history(),
         ]);
     }
 

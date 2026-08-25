@@ -159,6 +159,7 @@ $router->post('/admin/releases/{id}/publish', fn($id) => (new AdminController())
 $router->post('/admin/releases/sync', fn() => (new AdminController())->syncGitHubReleases());
 $router->get('/admin/updater', fn() => (new UpdaterController())->index());
 $router->get('/admin/updater/status', fn() => (new UpdaterController())->status());
+$router->get('/admin/updater/progress', fn() => (new UpdaterController())->progress());
 $router->post('/admin/updater/apply', fn() => (new UpdaterController())->apply());
 
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
