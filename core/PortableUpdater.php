@@ -86,17 +86,36 @@ class PortableUpdater
     private static function githubJson(string $path): array
     {
         self::ensureDirectories();
+        $cache = STORAGE_PATH . '/cache/github-' . hash('sha256', $path) . '.json';
+        if (is_file($cache) && filemtime($cache) >= time() - 300) {
+            $cached = json_decode((string) file_get_contents($cache), true);
+            if (is_array($cached)) return $cached;
+        }
         $temp = tempnam(STORAGE_PATH . '/cache', 'hrms-gh-');
         if ($temp === false || $temp === '') {
             throw new RuntimeException('Unable to create a temporary GitHub response file.');
         }
-        self::download($path, $temp);
         try {
+            self::download($path, $temp);
             $contents = file_get_contents($temp);
             if ($contents === false || $contents === '') throw new RuntimeException('GitHub returned an empty response.');
-            return json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
+            $decoded = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
+            file_put_contents($cache, $contents, LOCK_EX);
+            return $decoded;
         }
-        finally { @unlink($temp); }
+        catch (Throwable $error) {
+            // A stale successful response is safer than repeatedly exhausting
+            // the GitHub quota while rendering Developer navigation.
+            if (is_file($cache)) {
+                $cached = json_decode((string) file_get_contents($cache), true);
+                if (is_array($cached)) return $cached;
+            }
+            if ($path === '/commits/' . self::BRANCH && ($fallback = self::gitRemoteCommit())) {
+                file_put_contents($cache, json_encode($fallback, JSON_UNESCAPED_SLASHES), LOCK_EX);
+                return $fallback;
+            }
+            throw $error;
+        } finally { @unlink($temp); }
     }
 
     private static function download(string $path, string $destination): void
@@ -108,12 +127,43 @@ class PortableUpdater
         $handle = fopen($destination, 'wb'); if (!$handle) throw new RuntimeException('Unable to create update download.');
         $headers = ['Accept: application/vnd.github+json', 'X-GitHub-Api-Version: 2022-11-28'];
         $token = trim((string) getenv('HRMS_GITHUB_TOKEN')); if ($token !== '') $headers[] = 'Authorization: Bearer ' . $token;
-        $curl = curl_init('https://api.github.com/repos/' . GITHUB_REPOSITORY . $path);
+        $url = 'https://api.github.com/repos/' . GITHUB_REPOSITORY . $path;
+        if ($token === '' && str_starts_with($path, '/zipball/')) {
+            $url = 'https://codeload.github.com/' . GITHUB_REPOSITORY . '/zip/' . rawurlencode(substr($path, 9));
+            $headers = [];
+        }
+        $responseHeaders = [];
+        $curl = curl_init($url);
         curl_setopt_array($curl, [CURLOPT_FILE => $handle, CURLOPT_FOLLOWLOCATION => true, CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_TIMEOUT => 180, CURLOPT_HTTPHEADER => $headers, CURLOPT_USERAGENT => 'HRMS-Portable-Updater/1.0']);
+            CURLOPT_TIMEOUT => 180, CURLOPT_HTTPHEADER => $headers, CURLOPT_USERAGENT => 'HRMS-Portable-Updater/1.1',
+            CURLOPT_HEADERFUNCTION => static function ($curl, string $line) use (&$responseHeaders): int {
+                if (str_contains($line, ':')) { [$name, $value] = explode(':', $line, 2); $responseHeaders[strtolower(trim($name))] = trim($value); }
+                return strlen($line);
+            }]);
         $ok = curl_exec($curl); $code = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE); $error = curl_error($curl);
         curl_close($curl); fclose($handle);
-        if (!$ok || $code < 200 || $code >= 300) { @unlink($destination); throw new RuntimeException($error ?: "GitHub download failed with HTTP {$code}."); }
+        if (!$ok || $code < 200 || $code >= 300) {
+            @unlink($destination);
+            if ($code === 403 && isset($responseHeaders['x-ratelimit-reset'])) {
+                $reset = date('g:i A', (int) $responseHeaders['x-ratelimit-reset']);
+                throw new RuntimeException("GitHub API limit reached. Try again after {$reset}, or configure HRMS_GITHUB_TOKEN.");
+            }
+            throw new RuntimeException($error ?: "GitHub download failed with HTTP {$code}.");
+        }
+    }
+
+    private static function gitRemoteCommit(): ?array
+    {
+        if (!is_dir(BASE_PATH . '/.git') || !function_exists('proc_open')) return null;
+        $command = ['git', '-c', 'safe.directory=' . BASE_PATH, 'rev-parse', 'refs/remotes/origin/' . self::BRANCH];
+        $process = @proc_open($command, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, BASE_PATH);
+        if (!is_resource($process)) return null;
+        fclose($pipes[0]);
+        $output = stream_get_contents($pipes[1]);
+        stream_get_contents($pipes[2]);
+        fclose($pipes[1]); fclose($pipes[2]);
+        if (proc_close($process) !== 0 || !preg_match('/^([a-f0-9]{40})(?:\s|$)/', trim((string) $output), $match)) return null;
+        return ['sha' => $match[1], 'commit' => ['message' => 'Cached remote branch status retrieved through Git.']];
     }
 
     private static function extractAndLocateRoot(string $archive, string $destination): string

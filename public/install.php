@@ -56,6 +56,13 @@ function runSqlFile(PDO $pdo, string $path): void
 }
 
 if ($requirementsMet && !$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    // The packaged 10k-record snapshot can legitimately take longer than the
+    // default web execution limit on modest XAMPP machines.
+    @set_time_limit(300);
+    if (function_exists('ini_set')) {
+        @ini_set('memory_limit', '256M');
+    }
+
     if (!hash_equals($_SESSION['install_csrf'], $_POST['csrf_token'] ?? '')) {
         $errors[] = 'Invalid session token. Please reload the page and try again.';
     }
