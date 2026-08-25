@@ -2104,6 +2104,54 @@ table.table-card-view .account-holder strong { max-width: 100%; }
 @media (max-width: 980px) { .activity-hero { align-items: flex-start; flex-direction: column; }.activity-summary { width: 100%; }.activity-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }.activity-filters .glass-search { grid-column: 1 / -1; } }
 @media (max-width: 520px) { .activity-summary { grid-template-columns: 1fr; }.activity-filters { grid-template-columns: 1fr; }.activity-filters .glass-search { grid-column: auto; }.activity-card-heading { align-items: flex-start; flex-direction: column; }.activity-event { grid-template-columns: 32px minmax(0, 1fr); gap: 0.55rem; }.activity-event-icon { width: 32px; height: 32px; }.activity-event-meta { flex-direction: column; gap: 0.25rem; }.activity-event-meta span, .activity-event-meta time { border-right: 0; }.activity-detail-grid { grid-template-columns: 1fr; } }
 
+/* ---- Animated global search ---- */
+.header-search-wrap { perspective: 900px; }
+.header-global-search {
+    position: relative; overflow: hidden;
+    transition: width 240ms cubic-bezier(.2,.8,.2,1), border-color 180ms ease, background 180ms ease, box-shadow 220ms ease, transform 180ms ease;
+}
+.header-global-search::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(105deg, transparent 25%, color-mix(in srgb, var(--accent-blue) 10%, transparent) 50%, transparent 75%);
+    transform: translateX(-120%); transition: transform 500ms ease;
+}
+.header-global-search:focus-within::after { transform: translateX(120%); }
+.header-global-search:focus-within { transform: translateY(-1px); }
+.search-leading-icon {
+    position: relative; width: 17px; height: 17px; opacity: .72;
+    transition: opacity 180ms ease, transform 220ms cubic-bezier(.2,.8,.2,1);
+}
+.search-leading-icon::before { content: ''; position: absolute; width: 9px; height: 9px; border: 2px solid currentColor; border-radius: 50%; inset: 0 auto auto 0; }
+.search-leading-icon::after { content: ''; position: absolute; width: 7px; height: 2px; border-radius: 2px; background: currentColor; right: 0; bottom: 2px; transform: rotate(45deg); transform-origin: right center; }
+.header-global-search:focus-within .search-leading-icon { opacity: 1; color: var(--accent-blue); transform: rotate(-8deg) scale(1.08); }
+.search-hint { margin-left: auto; padding: .18rem .38rem; border: 1px solid var(--glass-border-soft); border-radius: 6px; color: var(--text-muted); background: var(--glass-bg-ultralight); font-size: .57rem; font-weight: 750; white-space: nowrap; transition: opacity 150ms ease, transform 150ms ease; }
+.header-global-search:focus-within .search-hint, .header-global-search input:not(:placeholder-shown) ~ .search-hint { opacity: 0; transform: scale(.85); pointer-events: none; width: 0; padding: 0; border: 0; overflow: hidden; }
+.search-clear { width: 25px; height: 25px; flex: 0 0 25px; padding: 0; border: 0; border-radius: 8px; background: color-mix(in srgb, var(--text-muted) 11%, transparent); color: var(--text-secondary); font: 700 1rem/1 sans-serif; cursor: pointer; animation: search-control-in 160ms ease both; }
+.search-clear:hover { color: var(--accent-danger); background: color-mix(in srgb, var(--accent-danger) 11%, transparent); transform: rotate(90deg); }
+.search-clear[hidden], .search-spinner[hidden] { display: none; }
+@keyframes search-control-in { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
+.global-search-results {
+    display: block; opacity: 0; visibility: hidden; pointer-events: none;
+    transform: translateY(-10px) rotateX(-4deg) scale(.985); transform-origin: top center;
+    box-shadow: 0 22px 55px rgba(15,23,42,.16); border: 1px solid var(--glass-border-soft);
+    transition: opacity 180ms ease, transform 220ms cubic-bezier(.2,.8,.2,1), visibility 180ms ease;
+}
+.global-search-results[hidden] { display: none; }
+.global-search-results.is-open { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0) rotateX(0) scale(1); }
+.global-search-item { position: relative; grid-template-columns: auto minmax(0, 1fr) auto; overflow: hidden; opacity: 0; transform: translateY(7px); }
+.global-search-results.is-open .global-search-item { animation: search-result-in 260ms cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(var(--search-item-index, 0) * 35ms); }
+.global-search-item::after { content: '→'; margin-left: auto; color: var(--accent-blue); opacity: 0; transform: translateX(-6px); transition: opacity 160ms ease, transform 160ms ease; }
+.global-search-item:hover::after, .global-search-item.active::after { opacity: 1; transform: translateX(0); }
+.global-search-item:hover .global-search-type, .global-search-item.active .global-search-type { transform: scale(1.07) rotate(-3deg); }
+.global-search-type { transition: transform 180ms cubic-bezier(.2,.8,.2,1), box-shadow 180ms ease; box-shadow: 0 6px 13px color-mix(in srgb, currentColor 20%, transparent); }
+.global-search-empty { display: grid; justify-items: center; gap: .25rem; padding: 1.65rem 1rem; animation: search-empty-in 240ms ease both; }
+.global-search-empty > span { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: .25rem; border-radius: 14px; color: var(--accent-blue); background: color-mix(in srgb, var(--accent-blue) 10%, transparent); font-size: 1.3rem; }
+.global-search-empty strong { color: var(--text-primary); font-size: .8rem; }.global-search-empty small { color: var(--text-muted); font-size: .67rem; }
+@keyframes search-result-in { to { opacity: 1; transform: translateY(0); } }
+@keyframes search-empty-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+@media (max-width: 760px) { .search-hint { display: none; }.global-search-results { max-height: min(55vh, 390px); transform: translateY(-7px) scale(.99); }.global-search-results.is-open { transform: translateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .header-global-search, .header-global-search::after, .search-leading-icon, .global-search-results, .global-search-item, .global-search-empty { animation: none !important; transition-duration: .01ms !important; } }
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.01ms !important;

@@ -112,13 +112,15 @@ if (Auth::check()) {
                 <div class="header-context"><span class="header-workspace"><span class="header-brand-dot"></span> HRMS Workspace</span><div class="header-title"><?= htmlspecialchars($pageTitle) ?></div></div>
             </div>
 
-            <div class="header-search-wrap">
-            <div class="glass-search header-global-search">
-                <span class="search-leading-icon" aria-hidden="true">&#128269;</span>
-                <input type="search" id="global-search" placeholder="Search tasks, accomplishments<?= (Auth::roleName() === ROLE_ADMIN || Auth::isDeveloper()) ? ', employees' : '' ?>..." aria-label="Global search" autocomplete="off" aria-expanded="false" aria-controls="global-search-results">
-                <span class="search-spinner" id="search-spinner" hidden></span>
-            </div>
-            <div class="global-search-results glass-strong" id="global-search-results" hidden></div>
+            <div class="header-search-wrap" id="header-search-wrap">
+                <div class="glass-search header-global-search">
+                    <span class="search-leading-icon" aria-hidden="true"></span>
+                    <input type="search" id="global-search" placeholder="Search tasks, accomplishments<?= (Auth::roleName() === ROLE_ADMIN || Auth::isDeveloper()) ? ', employees' : '' ?>..." aria-label="Global search" autocomplete="off" aria-expanded="false" aria-controls="global-search-results">
+                    <span class="search-hint" aria-hidden="true">⌘ K</span>
+                    <button class="search-clear" id="search-clear" type="button" aria-label="Clear search" hidden>&times;</button>
+                    <span class="search-spinner" id="search-spinner" hidden></span>
+                </div>
+                <div class="global-search-results glass-strong" id="global-search-results" role="listbox" aria-label="Search results" aria-live="polite" hidden></div>
             </div>
 
             <div class="header-actions">

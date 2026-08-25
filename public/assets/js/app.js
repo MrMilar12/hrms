@@ -316,14 +316,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const globalSearch = document.getElementById('global-search');
     const searchResults = document.getElementById('global-search-results');
     const searchSpinner = document.getElementById('search-spinner');
+    const searchClear = document.getElementById('search-clear');
     if (globalSearch && searchResults) {
         let searchTimer;
         let searchRequest;
+        let closeTimer;
         let activeResult = -1;
         const closeSearch = () => {
-            searchResults.hidden = true;
+            clearTimeout(closeTimer);
+            searchResults.classList.remove('is-open');
             globalSearch.setAttribute('aria-expanded', 'false');
             activeResult = -1;
+            closeTimer = setTimeout(() => { searchResults.hidden = true; }, 180);
+        };
+        const openSearch = () => {
+            clearTimeout(closeTimer);
+            searchResults.hidden = false;
+            requestAnimationFrame(() => searchResults.classList.add('is-open'));
+            globalSearch.setAttribute('aria-expanded', 'true');
+        };
+        const syncSearchControls = () => {
+            if (searchClear) searchClear.hidden = globalSearch.value.length === 0;
         };
         const selectResult = (index) => {
             const items = [...searchResults.querySelectorAll('a')];
@@ -337,13 +350,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!results.length) {
                 const empty = document.createElement('div');
                 empty.className = 'global-search-empty';
-                empty.textContent = `No results for “${query}”`;
+                empty.innerHTML = '<span aria-hidden="true">⌕</span><strong>No matching results</strong><small></small>';
+                empty.querySelector('small').textContent = `Try another keyword for “${query}”`;
                 searchResults.appendChild(empty);
             } else {
-                results.forEach(result => {
+                results.forEach((result, index) => {
                     const link = document.createElement('a');
                     link.href = result.url;
                     link.className = 'global-search-item';
+                    link.setAttribute('role', 'option');
+                    link.style.setProperty('--search-item-index', index);
                     const type = document.createElement('span');
                     type.className = `global-search-type search-type-${result.type.toLowerCase()}`;
                     type.textContent = result.type.charAt(0);
@@ -357,11 +373,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     searchResults.appendChild(link);
                 });
             }
-            searchResults.hidden = false;
-            globalSearch.setAttribute('aria-expanded', 'true');
+            openSearch();
             activeResult = -1;
         };
         globalSearch.addEventListener('input', () => {
+            syncSearchControls();
             clearTimeout(searchTimer);
             searchRequest?.abort();
             const query = globalSearch.value.trim();
@@ -379,6 +395,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     searchSpinner.hidden = true;
                 }
             }, 220);
+        });
+        globalSearch.addEventListener('focus', () => {
+            if (globalSearch.value.trim().length >= 2 && searchResults.hasChildNodes()) openSearch();
+        });
+        searchClear?.addEventListener('click', () => {
+            globalSearch.value = '';
+            searchRequest?.abort();
+            clearTimeout(searchTimer);
+            syncSearchControls();
+            closeSearch();
+            globalSearch.focus();
+        });
+        document.addEventListener('keydown', event => {
+            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+                event.preventDefault();
+                globalSearch.focus();
+                globalSearch.select();
+            }
         });
         globalSearch.addEventListener('keydown', event => {
             const items = searchResults.querySelectorAll('a');
