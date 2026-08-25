@@ -9,8 +9,9 @@ PHP (procedural-core, MVC-organized) + MySQL (InnoDB) + vanilla JS, styled with 
 
 1. Point your browser at `http://localhost/hrms/public/install.php`.
 2. It checks requirements (PHP version, `pdo_mysql`/`gd` extensions, writable `config`/`storage`/`uploads`), then asks for your MySQL credentials and the admin account you want.
-3. On submit it creates the database (if missing), runs `database/schema.sql` + `database/seed.sql`, creates your admin user, and writes `config/app.php` for you.
-4. **Delete or restrict access to `public/install.php` afterward** — it refuses to re-run once `storage/installed.lock` exists, but removing the file is safer.
+3. Choose either the exported current snapshot (10,004 employees with sample PDS data) or the small starter dataset.
+4. On submit it creates the database, runs the selected seed, disables snapshot credentials, creates or activates your administrator, and writes `config/app.php`.
+5. **Delete or restrict access to `public/install.php` afterward** — it refuses to re-run once `storage/installed.lock` exists, but removing the file is safer.
 
 ### Option B — Manual setup
 
@@ -21,6 +22,7 @@ PHP (procedural-core, MVC-organized) + MySQL (InnoDB) + vanilla JS, styled with 
    mysql -u root -p hris < database/seed.sql
    php scripts/seed_admin.php
    ```
+   To restore the packaged working dataset, run `database/schema.sql` followed by `database/seed_current_data.sql`. Do not also run `database/seed.sql`.
 2. **Config** — edit [config/app.php](config/app.php) with your DB credentials (host/user/pass).
 3. **Web server** — point your browser at `http://localhost/hrms/public/` (XAMPP serves `htdocs`, and `/public` is the front-controller root; `/hrms/` 302-redirects there). Requires `mod_rewrite` and `AllowOverride All`.
 4. **Login** — username `admin`, password `Admin@12345` (set in `scripts/seed_admin.php`) — **change immediately**.
