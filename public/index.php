@@ -3,6 +3,18 @@
 
 require_once __DIR__ . '/../config/constants.php';
 
+$maintenanceFile = STORAGE_PATH . '/cache/maintenance.json';
+$requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+if (is_file($maintenanceFile) && !str_starts_with($requestPath, BASE_URL . '/admin/updater')) {
+    $maintenance = json_decode((string) file_get_contents($maintenanceFile), true) ?: [];
+    http_response_code(503);
+    header('Retry-After: 60');
+    header('Content-Type: text/html; charset=UTF-8');
+    $message = htmlspecialchars($maintenance['message'] ?? 'HRMS is being updated. Please try again shortly.');
+    echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HRMS Update</title></head><body style="font-family:system-ui;display:grid;place-items:center;min-height:100vh;margin:0;background:#f4f7fb;color:#1e293b"><main style="max-width:520px;padding:2rem;text-align:center"><h1>System update in progress</h1><p>' . $message . '</p><p>Please refresh in a few minutes.</p></main></body></html>';
+    exit;
+}
+
 if (is_file(BASE_PATH . '/vendor/autoload.php')) {
     require_once BASE_PATH . '/vendor/autoload.php';
 }
@@ -63,6 +75,8 @@ $router->post('/logout', fn() => (new AuthController())->logout());
 // ---- Dashboard ----
 $router->get('/', fn() => (new DashboardController())->index());
 $router->get('/dashboard', fn() => (new DashboardController())->index());
+$router->get('/updates', fn() => (new UpdateController())->index());
+$router->post('/updates/acknowledge', fn() => (new UpdateController())->acknowledge());
 
 // ---- Onboarding ----
 $router->get('/onboarding', fn() => (new OnboardingController())->index());
@@ -136,5 +150,13 @@ $router->post('/admin/departments/{id}/delete', fn($id) => (new AdminController(
 $router->get('/admin/positions', fn() => (new AdminController())->positions());
 $router->post('/admin/positions/store', fn() => (new AdminController())->storePosition());
 $router->post('/admin/positions/{id}/delete', fn($id) => (new AdminController())->deletePosition($id));
+$router->get('/admin/releases', fn() => (new AdminController())->releases());
+$router->post('/admin/releases/store', fn() => (new AdminController())->storeRelease());
+$router->post('/admin/releases/{id}/publish', fn($id) => (new AdminController())->publishRelease($id));
+$router->post('/admin/releases/sync', fn() => (new AdminController())->syncGitHubReleases());
+$router->get('/admin/updater', fn() => (new UpdaterController())->index());
+$router->get('/admin/updater/status', fn() => (new UpdaterController())->status());
+$router->get('/admin/updater/progress', fn() => (new UpdaterController())->progress());
+$router->post('/admin/updater/apply', fn() => (new UpdaterController())->apply());
 
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
