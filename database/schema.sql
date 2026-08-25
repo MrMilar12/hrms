@@ -124,6 +124,30 @@ CREATE TABLE notifications (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE system_releases (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    version VARCHAR(30) NOT NULL UNIQUE,
+    title VARCHAR(150) NOT NULL,
+    changes TEXT NOT NULL,
+    released_at DATETIME NOT NULL,
+    is_published TINYINT(1) NOT NULL DEFAULT 0,
+    created_by INT UNSIGNED NULL,
+    github_release_id BIGINT UNSIGNED NULL UNIQUE,
+    release_url VARCHAR(500) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_system_releases_published (is_published, released_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE user_release_views (
+    user_id INT UNSIGNED NOT NULL,
+    release_id INT UNSIGNED NOT NULL,
+    viewed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, release_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (release_id) REFERENCES system_releases(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE rate_limits (
     bucket_hash CHAR(64) NOT NULL,
     window_start DATETIME NOT NULL,

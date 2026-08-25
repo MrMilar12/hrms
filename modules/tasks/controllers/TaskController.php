@@ -119,10 +119,14 @@ class TaskController extends Controller
 
         $this->taskModel->assign($taskId, $validEmployeeIds);
 
-        Notification::employees($validEmployeeIds, 'New task assigned: ' . Validator::sanitizeString($_POST['title']), BASE_URL . '/tasks/' . $taskId);
+        Notification::employees($validEmployeeIds, 'New task assigned: ' . Validator::sanitizeString($_POST['title']), BASE_URL . '/tasks/' . UrlId::encode($taskId));
 
-        AuditLogger::log('create', 'tasks', $taskId);
-        $this->json(['success' => true, 'message' => 'Task created.', 'task_id' => $taskId]);
+        AuditLogger::log('create', 'tasks', $taskId, null, [
+            'title' => Validator::sanitizeString($_POST['title']),
+            'assignee_ids' => $validEmployeeIds,
+            'priority' => $_POST['priority'] ?? 'Medium',
+        ]);
+        $this->json(['success' => true, 'message' => 'Task created.', 'task_token' => UrlId::encode($taskId)]);
     }
 
     public function show(string $id): void
@@ -186,8 +190,9 @@ class TaskController extends Controller
         $this->taskModel->updateAssignmentStatus($taskId, $employeeId, $status, Auth::userId());
         AuditLogger::log('update_assignment_status', 'task_assignments', $taskId, null, ['employee_id' => $employeeId, 'status' => $status]);
         $task = $this->taskModel->find($taskId);
-        Notification::employees([$employeeId], 'Your task “' . ($task['title'] ?? 'Task') . '” is now ' . $status . '.', BASE_URL . '/tasks/' . $taskId);
-        if (!empty($task['created_by'])) Notification::user((int) $task['created_by'], 'Task update: “' . $task['title'] . '” is now ' . $status . ' for one assignee.', BASE_URL . '/tasks/' . $taskId);
+        $taskUrl = BASE_URL . '/tasks/' . UrlId::encode($taskId);
+        Notification::employees([$employeeId], 'Your task “' . ($task['title'] ?? 'Task') . '” is now ' . $status . '.', $taskUrl);
+        if (!empty($task['created_by'])) Notification::user((int) $task['created_by'], 'Task update: “' . $task['title'] . '” is now ' . $status . ' for one assignee.', $taskUrl);
 
         $this->json(['success' => true, 'message' => 'Individual task status updated to ' . $status . '.']);
     }
@@ -208,12 +213,13 @@ class TaskController extends Controller
             return;
         }
 
-        $this->taskModel->addComment($taskId, Auth::userId(), $comment);
-        AuditLogger::log('add_comment', 'task_comments', $taskId);
+        $commentId = $this->taskModel->addComment($taskId, Auth::userId(), $comment);
+        AuditLogger::log('create', 'task_comments', $commentId, null, ['task_id' => $taskId]);
         $task = $this->taskModel->find($taskId);
         $assigneeIds = array_column($this->taskModel->assignees($taskId), 'id');
-        Notification::employees($assigneeIds, 'New comment on task: ' . ($task['title'] ?? 'Task'), BASE_URL . '/tasks/' . $taskId);
-        if (!empty($task['created_by'])) Notification::user((int) $task['created_by'], 'New comment on task: ' . $task['title'], BASE_URL . '/tasks/' . $taskId);
+        $taskUrl = BASE_URL . '/tasks/' . UrlId::encode($taskId);
+        Notification::employees($assigneeIds, 'New comment on task: ' . ($task['title'] ?? 'Task'), $taskUrl);
+        if (!empty($task['created_by'])) Notification::user((int) $task['created_by'], 'New comment on task: ' . $task['title'], $taskUrl);
         $this->json(['success' => true, 'message' => 'Comment added.']);
     }
 
@@ -237,7 +243,7 @@ class TaskController extends Controller
             $result = Uploader::handleImage($_FILES['file'], $dir);
             $caption = Validator::sanitizeString($this->input('caption', ''));
 
-            $this->taskModel->addAttachment(
+            $attachmentId = $this->taskModel->addAttachment(
                 $taskId,
                 Auth::userId(),
                 $result['file_path'],
@@ -247,7 +253,7 @@ class TaskController extends Controller
                 $result['file_size']
             );
 
-            AuditLogger::log('upload_attachment', 'task_attachments', $taskId);
+            AuditLogger::log('create', 'task_attachments', $attachmentId, null, ['task_id' => $taskId, 'file_type' => $result['file_type']]);
             $this->json(['success' => true, 'message' => 'Attachment uploaded.']);
         } catch (RuntimeException $e) {
             $this->json(['success' => false, 'error' => $e->getMessage()], 422);

@@ -3,13 +3,16 @@
 
 class AuditLogger
 {
+    private const SENSITIVE_KEYS = ['password', 'password_hash', 'approval_password', 'two_factor_secret', 'secret', 'csrf_token'];
+
     public static function log(string $action, string $tableName, ?int $recordId, ?array $oldValue = null, ?array $newValue = null): void
     {
         $requestContext = [
             'method' => $_SERVER['REQUEST_METHOD'] ?? 'CLI',
             'path' => isset($_SERVER['REQUEST_URI']) ? (parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/') : null,
         ];
-        $newValue = $newValue ?? [];
+        $oldValue = self::sanitize($oldValue);
+        $newValue = self::sanitize($newValue) ?? [];
         $newValue['_request'] = $requestContext;
         $pdo = Database::getInstance();
         $stmt = $pdo->prepare(
@@ -25,5 +28,24 @@ class AuditLogger
             json_encode($newValue, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
             $_SERVER['REMOTE_ADDR'] ?? null,
         ]);
+    }
+
+    /** Keep audit context useful without persisting credentials or unbounded payloads. */
+    private static function sanitize(?array $value): ?array
+    {
+        if ($value === null) return null;
+        $clean = [];
+        foreach ($value as $key => $item) {
+            if (in_array(strtolower((string) $key), self::SENSITIVE_KEYS, true)) {
+                $clean[$key] = '[REDACTED]';
+            } elseif (is_array($item)) {
+                $clean[$key] = self::sanitize($item);
+            } elseif (is_string($item) && strlen($item) > 500) {
+                $clean[$key] = substr($item, 0, 500) . '…';
+            } else {
+                $clean[$key] = $item;
+            }
+        }
+        return $clean;
     }
 }

@@ -4,6 +4,7 @@
 /** @var int $totalPages */
 /** @var array $roles */
 /** @var int $currentUserId */
+/** @var bool $viewerIsDeveloper */
 require MODULES_PATH . '/shared/views/header.php';
 ?>
 <div class="glass-card account-directory">
@@ -23,15 +24,16 @@ require MODULES_PATH . '/shared/views/header.php';
             $nameParts = array_filter([$u['first_name'] ?? null, $u['middle_name'] ?? null, $u['surname'] ?? null, $u['name_extension'] ?? null], static fn($part) => $part !== null && trim((string) $part) !== '' && !in_array(strtoupper(trim((string) $part)), ['N/A', 'NA', 'NONE'], true));
             $accountName = trim(implode(' ', $nameParts)) ?: $u['username'];
             $initial = strtoupper(substr($u['first_name'] ?: ($u['surname'] ?: $u['username']), 0, 1));
+            $isProtectedDeveloper = $u['role_name'] === ROLE_DEVELOPER && !$viewerIsDeveloper;
             ?>
             <tr>
-                <td><div class="account-holder"><?php if (!empty($u['photo_id'])): ?><img src="<?= BASE_URL ?>/photo/<?= (int) $u['photo_id'] ?>" alt=""><?php else: ?><span><?= htmlspecialchars($initial) ?></span><?php endif; ?><div><strong><?= htmlspecialchars($accountName) ?></strong><small><?= htmlspecialchars($u['employee_number'] ?? 'No linked employee') ?></small></div></div></td>
+                <td><div class="account-holder"><?php if (!empty($u['photo_id'])): ?><img src="<?= BASE_URL ?>/photo/<?= UrlId::encode((int) $u['photo_id']) ?>" alt=""><?php else: ?><span><?= htmlspecialchars($initial) ?></span><?php endif; ?><div><strong><?= htmlspecialchars($accountName) ?></strong><small><?= htmlspecialchars($u['employee_number'] ?? 'No linked employee') ?></small></div></div></td>
                 <td><?= htmlspecialchars($u['username']) ?></td>
                 <td><?= htmlspecialchars($u['email']) ?></td>
                 <td><span class="record-chip account-role-chip"><?= htmlspecialchars($u['role_name']) ?></span></td>
                 <td><div class="account-detail-stack"><strong><?= htmlspecialchars($u['position_title'] ?? 'Position not assigned') ?></strong><span><?= htmlspecialchars($u['department_name'] ?? 'Department not assigned') ?></span><small><?= htmlspecialchars($u['personnel_type'] ?? 'Unclassified') ?><?= !empty($u['current_school_station']) ? ' · ' . htmlspecialchars($u['current_school_station']) : '' ?></small></div></td>
                 <td>
-                    <select class="user-status-select" data-user-id="<?= (int) $u['id'] ?>">
+                    <select class="user-status-select" data-user-id="<?= UrlId::encode((int) $u['id']) ?>" <?= $isProtectedDeveloper ? 'disabled title="Only a Developer can manage this account"' : '' ?>>
                         <?php foreach (['active', 'inactive', 'locked'] as $s): ?>
                             <option value="<?= $s ?>" <?= $s === $u['status'] ? 'selected' : '' ?>><?= ucfirst($s) ?></option>
                         <?php endforeach; ?>
@@ -41,10 +43,12 @@ require MODULES_PATH . '/shared/views/header.php';
                 <td><div class="account-detail-stack"><strong><?= $u['last_login'] ? htmlspecialchars(date('M j, Y · g:i A', strtotime($u['last_login']))) : 'Never logged in' ?></strong><span>Last login</span><small>Created <?= htmlspecialchars(date('M j, Y', strtotime($u['created_at']))) ?></small></div></td>
                 <td>
                     <div class="account-actions">
-                        <button type="button" class="btn btn-secondary btn-sm account-edit" data-id="<?= (int) $u['id'] ?>" data-username="<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>" data-email="<?= htmlspecialchars($u['email'], ENT_QUOTES) ?>" data-role-id="<?= (int) $u['role_id'] ?>">Edit</button>
-                        <button type="button" class="btn btn-secondary btn-sm account-password" data-id="<?= (int) $u['id'] ?>" data-username="<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>">Password</button>
-                        <?php if (!empty($u['two_factor_enabled'])): ?><button type="button" class="btn btn-secondary btn-sm account-2fa" data-id="<?= (int) $u['id'] ?>" data-username="<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>">Reset 2FA</button><?php endif; ?>
-                        <?php if ((int) $u['id'] !== $currentUserId): ?><button type="button" class="btn btn-danger btn-sm account-delete" data-id="<?= (int) $u['id'] ?>" data-username="<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>">Delete</button><?php endif; ?>
+                        <?php if (!$isProtectedDeveloper): ?>
+                        <button type="button" class="btn btn-secondary btn-sm account-edit" data-id="<?= UrlId::encode((int) $u['id']) ?>" data-username="<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>" data-email="<?= htmlspecialchars($u['email'], ENT_QUOTES) ?>" data-role-id="<?= (int) $u['role_id'] ?>">Edit</button>
+                        <button type="button" class="btn btn-secondary btn-sm account-password" data-id="<?= UrlId::encode((int) $u['id']) ?>" data-username="<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>">Password</button>
+                        <?php if (!empty($u['two_factor_enabled'])): ?><button type="button" class="btn btn-secondary btn-sm account-2fa" data-id="<?= UrlId::encode((int) $u['id']) ?>" data-username="<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>">Reset 2FA</button><?php endif; ?>
+                        <?php if ((int) $u['id'] !== $currentUserId): ?><button type="button" class="btn btn-danger btn-sm account-delete" data-id="<?= UrlId::encode((int) $u['id']) ?>" data-username="<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>">Delete</button><?php endif; ?>
+                        <?php else: ?><span class="record-chip">Protected account</span><?php endif; ?>
                     </div>
                 </td>
             </tr>

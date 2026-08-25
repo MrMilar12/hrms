@@ -158,7 +158,7 @@ class Accomplishment extends Model
         $stmt->execute([$attachmentId, $accomplishmentId]);
     }
 
-    public function review(int $accomplishmentId, int $reviewerId, string $status, ?string $comments): void
+    public function review(int $accomplishmentId, int $reviewerId, string $status, ?string $comments): int
     {
         $this->db->beginTransaction();
         try {
@@ -170,8 +170,10 @@ class Accomplishment extends Model
                  VALUES (?, ?, ?, ?, NOW())'
             );
             $stmt->execute([$accomplishmentId, $reviewerId, $newStatus, $comments]);
+            $reviewId = (int) $this->db->lastInsertId();
 
             $this->db->commit();
+            return $reviewId;
         } catch (Throwable $e) {
             $this->db->rollBack();
             throw $e;

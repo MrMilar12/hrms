@@ -2,6 +2,7 @@
 /** @var array $summary */
 /** @var array $gender */
 /** @var array $departmentStats */
+/** @var array $positionStats */
 /** @var array $employmentStats */
 /** @var array $taskStats */
 /** @var array $monthlySubmissions */
@@ -16,6 +17,7 @@ $nonTeachingPercent = $summary['employees'] > 0 ? round(($summary['nonTeaching']
 $unclassifiedPersonnelPercent = $summary['employees'] > 0 ? max(0, round(100 - $teachingPercent - $nonTeachingPercent, 1)) : 0;
 $submissionMax = max(1, ...array_column($monthlySubmissions, 'total'));
 $departmentMax = max(1, ...array_map(fn($row) => (int) $row['total'], $departmentStats ?: [['total' => 0]]));
+$positionMax = max(1, ...array_map(fn($row) => (int) $row['total'], $positionStats ?: [['total' => 0]]));
 $taskTotal = max(1, array_sum(array_map(fn($row) => (int) $row['total'], $taskStats)));
 $taskColors = ['Open' => '#60a5fa', 'In Progress' => '#8b5cf6', 'For Review' => '#f59e0b', 'Done' => '#22c55e', 'Cancelled' => '#94a3b8'];
 ?>
@@ -61,6 +63,32 @@ $taskColors = ['Open' => '#60a5fa', 'In Progress' => '#8b5cf6', 'For Review' => 
             </div>
         </article>
     </div>
+
+    <article class="analytics-card glass analytics-positions">
+        <div class="analytics-card-head">
+            <div><span class="launcher-eyebrow">Plantilla occupancy</span><h2>Occupied plantilla positions</h2><p>Number of employees currently assigned to each plantilla position.</p></div>
+            <div class="analytics-position-summary">
+                <span><strong><?= number_format($summary['occupiedPositions']) ?></strong> occupied titles</span>
+                <span><strong><?= number_format($summary['positionAssignedEmployees']) ?></strong> assigned employees</span>
+                <?php if ($summary['positionUnassignedEmployees'] > 0): ?><span><strong><?= number_format($summary['positionUnassignedEmployees']) ?></strong> unassigned</span><?php endif; ?>
+            </div>
+        </div>
+        <?php if ($positionStats): ?>
+            <div class="plantilla-graph" role="img" aria-label="Horizontal bar graph showing employee count per occupied plantilla position">
+                <div class="plantilla-graph-axis"><span>Plantilla position</span><span>Occupied employees</span></div>
+                <?php foreach ($positionStats as $row): ?>
+                    <?php $positionPercent = round(((int) $row['total'] / $positionMax) * 100, 1); ?>
+                    <div class="plantilla-graph-row" title="<?= htmlspecialchars($row['label']) ?>: <?= (int) $row['total'] ?> occupied">
+                        <div class="plantilla-graph-label"><strong><?= htmlspecialchars($row['label']) ?></strong><small><?= htmlspecialchars($row['salary_grade'] ?: 'No salary grade') ?></small></div>
+                        <div class="plantilla-graph-track"><span style="width:<?= $positionPercent ?>%"></span></div>
+                        <output><?= number_format((int) $row['total']) ?></output>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <div class="analytics-empty">No employees have been assigned to a plantilla position yet.</div>
+        <?php endif; ?>
+    </article>
 
     <div class="analytics-grid analytics-grid-secondary">
         <article class="analytics-card glass">

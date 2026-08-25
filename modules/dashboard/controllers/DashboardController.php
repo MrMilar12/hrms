@@ -49,6 +49,7 @@ class DashboardController extends Controller
             'myAccomplishmentCounts' => $myAccomplishmentCounts,
             'accomplishmentCounts' => $accomplishmentCounts,
             'notifications' => $notifStmt->fetchAll(),
+            'unseenReleases' => SystemRelease::unseenForUser((int) Auth::userId()),
         ]);
     }
 }

@@ -56,6 +56,7 @@ if (Auth::check()) {
             <?php endif; ?>
             <a class="app-nav-card <?= $isActive('/profile') ?: $isActive('/pds') ?>" href="<?= BASE_URL ?>/profile"><span class="app-nav-icon">&#128100;</span><span><strong>My Profile</strong><small>Information &amp; PDS</small></span></a>
             <a class="app-nav-card <?= $isActive('/settings') ?>" href="<?= BASE_URL ?>/settings"><span class="app-nav-icon">&#9881;</span><span><strong>Settings</strong><small>Theme &amp; colors</small></span></a>
+            <a class="app-nav-card <?= $isActive('/updates') ?>" href="<?= BASE_URL ?>/updates"><span class="app-nav-icon">&#10024;</span><span><strong>What's New</strong><small>Version <?= htmlspecialchars(SystemRelease::currentVersion()) ?></small></span></a>
             <a class="app-nav-card <?= $isActive('/tasks') ?>" href="<?= BASE_URL ?>/tasks"><span class="app-nav-icon">&#10003;</span><span><strong>Tasks</strong><small>Work board</small></span></a>
             <?php if (Auth::can('accomplishment.create')): ?>
                 <a class="app-nav-card <?= $isActive('/accomplishments') ?>" href="<?= BASE_URL ?>/accomplishments"><span class="app-nav-icon">&#10022;</span><span><strong>Accomplishments</strong><small>Evidence &amp; reviews</small></span></a>
@@ -73,6 +74,7 @@ if (Auth::check()) {
                     <a class="app-nav-card <?= $isActive('/admin/users') ?>" href="<?= BASE_URL ?>/admin/users"><span class="app-nav-icon">&#128273;</span><span><strong>Accounts</strong><small>Access control</small></span></a>
                     <a class="app-nav-card <?= $isActive('/admin/departments') ?>" href="<?= BASE_URL ?>/admin/departments"><span class="app-nav-icon">&#9671;</span><span><strong>Departments</strong><small>Organization</small></span></a>
                     <a class="app-nav-card <?= $isActive('/admin/positions') ?>" href="<?= BASE_URL ?>/admin/positions"><span class="app-nav-icon">&#9734;</span><span><strong>Positions</strong><small>Job catalogue</small></span></a>
+                    <?php if (Auth::isDeveloper()): ?><a class="app-nav-card <?= $isActive('/admin/releases') ?>" href="<?= BASE_URL ?>/admin/releases"><span class="app-nav-icon">&#128640;</span><span><strong>System Updates</strong><small>Release notes</small></span></a><?php endif; ?>
                 <?php endif; ?>
             </nav>
         <?php endif; ?>
@@ -98,7 +100,7 @@ if (Auth::check()) {
             <div class="header-search-wrap">
             <div class="glass-search header-global-search">
                 <span class="search-leading-icon" aria-hidden="true">&#128269;</span>
-                <input type="search" id="global-search" placeholder="Search tasks, accomplishments<?= Auth::roleName() === ROLE_ADMIN ? ', employees' : '' ?>..." aria-label="Global search" autocomplete="off" aria-expanded="false" aria-controls="global-search-results">
+                <input type="search" id="global-search" placeholder="Search tasks, accomplishments<?= (Auth::roleName() === ROLE_ADMIN || Auth::isDeveloper()) ? ', employees' : '' ?>..." aria-label="Global search" autocomplete="off" aria-expanded="false" aria-controls="global-search-results">
                 <span class="search-spinner" id="search-spinner" hidden></span>
             </div>
             <div class="global-search-results glass-strong" id="global-search-results" hidden></div>

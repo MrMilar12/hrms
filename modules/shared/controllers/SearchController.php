@@ -28,7 +28,7 @@ class SearchController extends Controller
                 $stmt->execute([Auth::employeeId(), $like, $like]);
             }
             foreach ($stmt->fetchAll() as $row) {
-                $results[] = ['type' => 'Task', 'title' => $row['title'], 'subtitle' => $row['status'] . ($row['due_date'] ? ' · Due ' . $row['due_date'] : ''), 'url' => BASE_URL . '/tasks/' . $row['id']];
+                $results[] = ['type' => 'Task', 'title' => $row['title'], 'subtitle' => $row['status'] . ($row['due_date'] ? ' · Due ' . $row['due_date'] : ''), 'url' => BASE_URL . '/tasks/' . UrlId::encode((int) $row['id'])];
             }
         }
 
@@ -46,11 +46,11 @@ class SearchController extends Controller
                 $stmt->execute([Auth::employeeId(), $like, $like]);
             }
             foreach ($stmt->fetchAll() as $row) {
-                $results[] = ['type' => 'Accomplishment', 'title' => $row['title'], 'subtitle' => $row['status'] . ($row['employee_name'] ? ' · ' . $row['employee_name'] : ''), 'url' => BASE_URL . '/accomplishments/' . $row['id']];
+                $results[] = ['type' => 'Accomplishment', 'title' => $row['title'], 'subtitle' => $row['status'] . ($row['employee_name'] ? ' · ' . $row['employee_name'] : ''), 'url' => BASE_URL . '/accomplishments/' . UrlId::encode((int) $row['id'])];
             }
         }
 
-        if (Auth::roleName() === ROLE_ADMIN) {
+        if (Auth::roleName() === ROLE_ADMIN || Auth::isDeveloper()) {
             $stmt = $pdo->prepare(
                 "SELECT e.id, e.employee_number, d.name department_name,
                         COALESCE(NULLIF(TRIM(CONCAT(pi.first_name, ' ', pi.surname)), ''), e.employee_number) employee_name
@@ -61,7 +61,7 @@ class SearchController extends Controller
             );
             $stmt->execute([$like, $like, $like]);
             foreach ($stmt->fetchAll() as $row) {
-                $results[] = ['type' => 'Employee', 'title' => $row['employee_name'], 'subtitle' => $row['employee_number'] . ($row['department_name'] ? ' · ' . $row['department_name'] : ''), 'url' => BASE_URL . '/employees/' . $row['id']];
+                $results[] = ['type' => 'Employee', 'title' => $row['employee_name'], 'subtitle' => $row['employee_number'] . ($row['department_name'] ? ' · ' . $row['department_name'] : ''), 'url' => BASE_URL . '/employees/' . UrlId::encode((int) $row['id'])];
             }
         }
 

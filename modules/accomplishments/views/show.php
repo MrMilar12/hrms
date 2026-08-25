@@ -24,10 +24,10 @@ $statusBadge = fn($s) => 'badge-' . strtolower(str_replace(' ', '-', $s === 'App
 
     <div style="margin-top:1rem; display:flex; gap:0.6rem; flex-wrap:wrap;">
         <?php if ($accomplishment['status'] === 'Approved'): ?>
-            <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/accomplishments/<?= (int) $accomplishment['id'] ?>/print" target="_blank">&#11015; Download / Print</a>
+            <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/accomplishments/<?= UrlId::encode((int) $accomplishment['id']) ?>/print" target="_blank">&#11015; Download / Print</a>
         <?php endif; ?>
         <?php if ($isOwner && !$canReview && in_array($accomplishment['status'], ['Draft', 'Returned'], true)): ?>
-            <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/accomplishments/<?= (int) $accomplishment['id'] ?>/edit">Edit accomplishment</a>
+            <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/accomplishments/<?= UrlId::encode((int) $accomplishment['id']) ?>/edit">Edit accomplishment</a>
             <button class="btn btn-primary btn-sm" id="btn-submit-now">Submit for Review</button>
         <?php endif; ?>
     </div>
@@ -43,8 +43,8 @@ $statusBadge = fn($s) => 'badge-' . strtolower(str_replace(' ', '-', $s === 'App
     <div class="attachment-grid">
         <?php foreach ($attachments as $att): ?>
             <div class="attachment-item">
-                <a href="<?= BASE_URL ?>/files/accomplishment-attachment/<?= (int) $att['id'] ?>" target="_blank">
-                    <img class="thumb" src="<?= BASE_URL ?>/files/accomplishment-attachment/<?= (int) $att['id'] ?>" alt="evidence">
+                <a href="<?= BASE_URL ?>/files/accomplishment-attachment/<?= UrlId::encode((int) $att['id']) ?>" target="_blank">
+                    <img class="thumb" src="<?= BASE_URL ?>/files/accomplishment-attachment/<?= UrlId::encode((int) $att['id']) ?>" alt="evidence">
                 </a>
                 <div><?= htmlspecialchars($att['caption'] ?? '') ?></div>
             </div>
@@ -92,7 +92,7 @@ $statusBadge = fn($s) => 'badge-' . strtolower(str_replace(' ', '-', $s === 'App
 <?php endif; ?>
 
 <script>
-const accomplishmentId = <?= (int) $accomplishment['id'] ?>;
+const accomplishmentId = <?= json_encode(UrlId::encode((int) $accomplishment['id'])) ?>;
 
 document.getElementById('btn-submit-now')?.addEventListener('click', async () => {
     const result = await HRIS.postJson(`${window.BASE_URL}/accomplishments/${accomplishmentId}/submit`, {});

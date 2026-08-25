@@ -27,7 +27,7 @@ $fullName = trim(($info['first_name'] ?? '') . ' ' . ($info['middle_name'] ?? ''
                 <form class="profile-photo-form" id="profile-photo-form">
                     <label class="profile-photo-control" for="profile-photo-input" title="Change profile picture">
                         <?php if ($photo): ?>
-                            <img class="profile-photo" id="profile-photo-preview" src="<?= BASE_URL ?>/photo/<?= (int) $photo['id'] ?>" alt="<?= htmlspecialchars($fullName) ?>">
+                            <img class="profile-photo" id="profile-photo-preview" src="<?= BASE_URL ?>/photo/<?= UrlId::encode((int) $photo['id']) ?>" alt="<?= htmlspecialchars($fullName) ?>">
                         <?php else: ?>
                             <span class="profile-photo profile-photo-placeholder" id="profile-photo-preview"><?= htmlspecialchars(strtoupper(substr($fullName, 0, 1))) ?></span>
                         <?php endif; ?>

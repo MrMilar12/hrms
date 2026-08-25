@@ -39,7 +39,10 @@ class EmployeeController extends Controller
         $pdo = Database::getInstance();
         $departments = $pdo->query('SELECT id, name FROM departments ORDER BY name')->fetchAll();
         $positions = $pdo->query('SELECT id, title FROM positions ORDER BY title')->fetchAll();
-        $roles = $pdo->query('SELECT id, name FROM roles ORDER BY name')->fetchAll();
+        $roles = $pdo->query("SELECT id, name FROM roles WHERE name <> 'Developer' ORDER BY name")->fetchAll();
+        if (Auth::isDeveloper()) {
+            $roles = $pdo->query('SELECT id, name FROM roles ORDER BY name')->fetchAll();
+        }
 
         $this->view('employees', 'create', [
             'pageTitle' => 'Add Employee',
@@ -91,10 +94,15 @@ class EmployeeController extends Controller
             return;
         }
 
-        $roleExists = $pdo->prepare('SELECT id FROM roles WHERE id = ?');
+        $roleExists = $pdo->prepare('SELECT id, name FROM roles WHERE id = ?');
         $roleExists->execute([$roleId]);
-        if (!$roleExists->fetchColumn()) {
+        $selectedRole = $roleExists->fetch();
+        if (!$selectedRole) {
             $this->json(['success' => false, 'error' => 'Please select a valid role.'], 422);
+            return;
+        }
+        if ($selectedRole['name'] === ROLE_DEVELOPER && !Auth::isDeveloper()) {
+            $this->json(['success' => false, 'error' => 'Only a Developer can create another Developer account.'], 403);
             return;
         }
 
@@ -124,7 +132,7 @@ class EmployeeController extends Controller
 
         AuditLogger::log('create', 'employees', $employeeId);
         AuditLogger::log('create', 'users', $userId);
-        $this->json(['success' => true, 'message' => 'Employee and account created.', 'employee_id' => $employeeId]);
+        $this->json(['success' => true, 'message' => 'Employee and account created.', 'employee_token' => UrlId::encode($employeeId)]);
     }
 
     public function show(string $id): void
@@ -184,8 +192,8 @@ class EmployeeController extends Controller
         try {
             $dir = UPLOADS_PATH . "/photos/{$employeeId}";
             $result = Uploader::handleImage($_FILES['photo'], $dir);
-            $this->employeeModel->savePhoto($employeeId, $result['file_path'], $result['thumbnail_path']);
-            AuditLogger::log('upload_photo', 'employee_photos', $employeeId);
+            $photoId = $this->employeeModel->savePhoto($employeeId, $result['file_path'], $result['thumbnail_path']);
+            AuditLogger::log('create', 'employee_photos', $photoId, null, ['employee_id' => $employeeId]);
             $this->json(['success' => true, 'message' => 'Photo uploaded.']);
         } catch (RuntimeException $e) {
             $this->json(['success' => false, 'error' => $e->getMessage()], 422);

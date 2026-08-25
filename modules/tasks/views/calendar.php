@@ -32,7 +32,7 @@ $priorityClass = fn(string $priority) => 'priority-' . strtolower($priority);
                     <header><span><?= $date->format('j') ?></span><?php if ($dayTasks): ?><small><?= count($dayTasks) ?></small><?php endif; ?></header>
                     <div class="calendar-day-tasks">
                         <?php foreach ($dayTasks as $task): ?>
-                            <a class="calendar-task" href="<?= BASE_URL ?>/tasks/<?= (int) $task['id'] ?>" title="<?= htmlspecialchars($task['title']) ?>">
+                            <a class="calendar-task" href="<?= BASE_URL ?>/tasks/<?= UrlId::encode((int) $task['id']) ?>" title="<?= htmlspecialchars($task['title']) ?>">
                                 <span class="priority-dot <?= $priorityClass($task['priority']) ?>"></span>
                                 <span><strong><?= htmlspecialchars($task['title']) ?></strong><small><?= htmlspecialchars($task['status']) ?><?= $task['department_name'] ? ' · ' . htmlspecialchars($task['department_name']) : '' ?></small></span>
                             </a>

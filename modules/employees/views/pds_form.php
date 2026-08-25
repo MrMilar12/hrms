@@ -41,7 +41,7 @@ require MODULES_PATH . '/shared/views/header.php';
             <h2 style="margin:0;">Personal Data Sheet</h2>
             <span style="color:var(--text-muted); font-size:0.85rem;">CS Form No. 212</span>
         </div>
-        <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/pds/print/<?= $employeeId ?>" target="_blank">Print / Save PDF</a>
+        <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/pds/print/<?= UrlId::encode($employeeId) ?>" target="_blank">Print / Save PDF</a>
     </div>
     <div style="display:flex; align-items:center; gap:0.75rem; margin-top:1rem;" aria-live="polite">
         <div class="progress-bar" style="flex:1;" role="progressbar" aria-label="PDS completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= $completionPercent ?>"><div id="pds-completion-bar" class="progress-bar-fill" data-target="<?= $completionPercent ?>"></div></div>
@@ -64,7 +64,7 @@ require MODULES_PATH . '/shared/views/header.php';
 
 <!-- I. PERSONAL INFO + ADDRESSES -->
 <div id="tab-personal" class="tab-panel glass-card">
-    <form class="ajax-section-form" data-endpoint="<?= BASE_URL ?>/pds/save-section/personal_info?employee_id=<?= $employeeId ?>">
+    <form class="ajax-section-form" data-endpoint="<?= BASE_URL ?>/pds/save-section/personal_info?employee_id=<?= UrlId::encode($employeeId) ?>">
         <h3>Personal Information</h3>
         <div class="form-row">
             <div class="form-group"><label>Surname</label><input name="surname" value="<?= pv($personalInfo, 'surname') ?>" required></div>
@@ -123,7 +123,7 @@ require MODULES_PATH . '/shared/views/header.php';
     </form>
 
     <div class="sidebar-divider"></div>
-    <form class="ajax-section-form" data-endpoint="<?= BASE_URL ?>/pds/save-section/addresses?employee_id=<?= $employeeId ?>">
+    <form class="ajax-section-form" data-endpoint="<?= BASE_URL ?>/pds/save-section/addresses?employee_id=<?= UrlId::encode($employeeId) ?>">
         <h3>Residential Address</h3>
         <div class="form-row">
             <?php $r = $addresses['Residential'] ?? []; ?>
@@ -157,7 +157,7 @@ require MODULES_PATH . '/shared/views/header.php';
 
 <!-- II. FAMILY BACKGROUND -->
 <div id="tab-family" class="tab-panel glass-card" style="display:none;">
-    <form class="ajax-section-form" data-endpoint="<?= BASE_URL ?>/pds/save-section/family_background?employee_id=<?= $employeeId ?>">
+    <form class="ajax-section-form" data-endpoint="<?= BASE_URL ?>/pds/save-section/family_background?employee_id=<?= UrlId::encode($employeeId) ?>">
         <h3>Spouse</h3>
         <div class="form-row">
             <div class="form-group"><label>Surname</label><input name="spouse_surname" value="<?= pv($familyBackground, 'spouse_surname') ?>"></div>
@@ -194,7 +194,7 @@ require MODULES_PATH . '/shared/views/header.php';
     <div id="children-rows" data-repeating-section="children"></div>
     <div style="display:flex; gap:0.5rem;">
         <button type="button" class="btn btn-secondary btn-sm" onclick="addRepeatingRow('children')">+ Add Child</button>
-        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('children', <?= $employeeId ?>)">Save Children</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('children')">Save Children</button>
     </div>
 </div>
 
@@ -204,7 +204,7 @@ require MODULES_PATH . '/shared/views/header.php';
     <div id="educational_background-rows" data-repeating-section="educational_background"></div>
     <div style="display:flex; gap:0.5rem;">
         <button type="button" class="btn btn-secondary btn-sm" onclick="addRepeatingRow('educational_background')">+ Add Row</button>
-        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('educational_background', <?= $employeeId ?>)">Save Education</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('educational_background')">Save Education</button>
     </div>
 </div>
 
@@ -214,7 +214,7 @@ require MODULES_PATH . '/shared/views/header.php';
     <div id="civil_service_eligibility-rows" data-repeating-section="civil_service_eligibility"></div>
     <div style="display:flex; gap:0.5rem;">
         <button type="button" class="btn btn-secondary btn-sm" onclick="addRepeatingRow('civil_service_eligibility')">+ Add Row</button>
-        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('civil_service_eligibility', <?= $employeeId ?>)">Save Eligibility</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('civil_service_eligibility')">Save Eligibility</button>
     </div>
 </div>
 
@@ -224,7 +224,7 @@ require MODULES_PATH . '/shared/views/header.php';
     <div id="work_experience-rows" data-repeating-section="work_experience"></div>
     <div style="display:flex; gap:0.5rem;">
         <button type="button" class="btn btn-secondary btn-sm" onclick="addRepeatingRow('work_experience')">+ Add Row</button>
-        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('work_experience', <?= $employeeId ?>)">Save Work Experience</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('work_experience')">Save Work Experience</button>
     </div>
 </div>
 
@@ -234,7 +234,7 @@ require MODULES_PATH . '/shared/views/header.php';
     <div id="voluntary_work-rows" data-repeating-section="voluntary_work"></div>
     <div style="display:flex; gap:0.5rem;">
         <button type="button" class="btn btn-secondary btn-sm" onclick="addRepeatingRow('voluntary_work')">+ Add Row</button>
-        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('voluntary_work', <?= $employeeId ?>)">Save Voluntary Work</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('voluntary_work')">Save Voluntary Work</button>
     </div>
 </div>
 
@@ -244,7 +244,7 @@ require MODULES_PATH . '/shared/views/header.php';
     <div id="learning_development-rows" data-repeating-section="learning_development"></div>
     <div style="display:flex; gap:0.5rem;">
         <button type="button" class="btn btn-secondary btn-sm" onclick="addRepeatingRow('learning_development')">+ Add Row</button>
-        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('learning_development', <?= $employeeId ?>)">Save Trainings</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('learning_development')">Save Trainings</button>
     </div>
 </div>
 
@@ -255,13 +255,13 @@ require MODULES_PATH . '/shared/views/header.php';
     <div id="other_info-rows" data-repeating-section="other_info"></div>
     <div style="display:flex; gap:0.5rem;">
         <button type="button" class="btn btn-secondary btn-sm" onclick="addRepeatingRow('other_info')">+ Add Row</button>
-        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('other_info', <?= $employeeId ?>)">Save Other Info</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('other_info')">Save Other Info</button>
     </div>
 </div>
 
 <!-- QUESTIONNAIRE -->
 <div id="tab-questionnaire" class="tab-panel glass-card" style="display:none;">
-    <form class="ajax-section-form" data-endpoint="<?= BASE_URL ?>/pds/save-section/questionnaire?employee_id=<?= $employeeId ?>">
+    <form class="ajax-section-form" data-endpoint="<?= BASE_URL ?>/pds/save-section/questionnaire?employee_id=<?= UrlId::encode($employeeId) ?>">
         <h3>Background Questions</h3>
         <?php
         $questions = [
@@ -310,7 +310,7 @@ require MODULES_PATH . '/shared/views/header.php';
     <div id="character_references-rows" data-repeating-section="character_references"></div>
     <div style="display:flex; gap:0.5rem;">
         <button type="button" class="btn btn-secondary btn-sm" onclick="addRepeatingRow('character_references')">+ Add Reference</button>
-        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('character_references', <?= $employeeId ?>)">Save References</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveRepeatingSection('character_references')">Save References</button>
     </div>
 </div>
 
@@ -391,7 +391,7 @@ function addRepeatingRow(section, data = {}) {
     container.appendChild(row);
 }
 
-function saveRepeatingSection(section, employeeId) {
+function saveRepeatingSection(section) {
     const container = document.getElementById(`${section}-rows`);
     const fields = REPEATING_FIELD_DEFS[section];
     const rows = [...container.querySelectorAll('.repeating-row')].map(rowEl => {
@@ -405,7 +405,7 @@ function saveRepeatingSection(section, employeeId) {
 
     const formData = new FormData();
     formData.append('rows', JSON.stringify(rows));
-    HRIS.postForm(`${window.BASE_URL}/pds/save-section/${section}?employee_id=${employeeId}`, formData)
+    HRIS.postForm(`${window.BASE_URL}/pds/save-section/${section}?employee_id=<?= UrlId::encode($employeeId) ?>`, formData)
         .then(result => {
             if (result.success) HRIS.updatePdsCompletion(result.completionPercent);
             HRIS.flash(result.message || (result.success ? 'Saved.' : 'Save failed.'), result.success ? 'success' : 'error');

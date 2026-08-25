@@ -95,7 +95,7 @@ document.getElementById('create-task-form').addEventListener('submit', async (e)
     const res = await fetch(`${window.BASE_URL}/tasks/store`, { method: 'POST', body: formData });
     const result = await res.json();
     if (result.success) {
-        window.location.href = `${window.BASE_URL}/tasks/${result.task_id}`;
+        window.location.href = `${window.BASE_URL}/tasks/${result.task_token}`;
     } else {
         HRIS.flash(result.error || 'Failed to create task.', 'error');
     }

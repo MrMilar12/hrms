@@ -10,4 +10,5 @@
 !/storage/logs/.gitkeep
 !/storage/cache/.gitkeep
 /storage/installed.lock
+/storage/app.key
 .DS_Store

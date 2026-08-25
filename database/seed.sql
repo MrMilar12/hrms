@@ -2,6 +2,7 @@
 -- Default admin account is created separately by running `php scripts/seed_admin.php`.
 
 INSERT INTO roles (name, description) VALUES
+    ('Developer', 'Protected system owner with unrestricted access'),
     ('Admin', 'Full system access'),
     ('HR', 'Manages employees, PDS, and reports'),
     ('Supervisor', 'Manages department tasks'),
@@ -27,6 +28,10 @@ INSERT INTO permissions (code, description) VALUES
 -- Admin: all permissions
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r CROSS JOIN permissions p WHERE r.name = 'Admin';
+
+-- Developer: all defined permissions (Auth also grants future permissions).
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r CROSS JOIN permissions p WHERE r.name = 'Developer';
 
 -- HR: employee + PDS + reports
 INSERT INTO role_permissions (role_id, permission_id)

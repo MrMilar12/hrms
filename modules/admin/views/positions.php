@@ -22,7 +22,7 @@ require MODULES_PATH . '/shared/views/header.php';
             <thead><tr><th>Title</th><th>Salary Grade</th><th>Employees</th><th>Actions</th></tr></thead>
             <tbody>
             <?php foreach ($positions as $p): ?>
-                <tr><td><strong><?= htmlspecialchars($p['title']) ?></strong></td><td><span class="record-chip"><?= htmlspecialchars($p['salary_grade'] ?? '—') ?></span></td><td><?= number_format((int) $p['employee_count']) ?></td><td><button class="btn btn-sm btn-danger" type="button" onclick="deletePosition(<?= (int) $p['id'] ?>)">Delete</button></td></tr>
+                <tr><td><strong><?= htmlspecialchars($p['title']) ?></strong></td><td><span class="record-chip"><?= htmlspecialchars($p['salary_grade'] ?? '—') ?></span></td><td><?= number_format((int) $p['employee_count']) ?></td><td><button class="btn btn-sm btn-danger" type="button" onclick="deletePosition(<?= htmlspecialchars(json_encode(UrlId::encode((int) $p['id'])), ENT_QUOTES) ?>)">Delete</button></td></tr>
             <?php endforeach; ?>
             <?php if (!$positions): ?><tr><td colspan="4" class="position-empty">No matching positions found.</td></tr><?php endif; ?>
             </tbody>

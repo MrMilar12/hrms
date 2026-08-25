@@ -15,7 +15,12 @@ define('CSS_ASSET_VERSION', (string) (filemtime(BASE_PATH . '/public/assets/css/
 define('JS_ASSET_VERSION', (string) (filemtime(BASE_PATH . '/public/assets/js/app.js') ?: 1));
 
 // Base URL of the app (adjust if deployed in a sub-folder under htdocs).
-define('BASE_URL', '/hrms/public');
+define('BASE_URL', '/hrms');
+
+// Human-readable product version shown in the interface. Keep this aligned
+// with the newest published entry in system_releases when deploying an update.
+define('APP_VERSION', '1.1.0');
+define('GITHUB_REPOSITORY', 'MrMilar12/hrms');
 
 // Upload limits
 define('MAX_UPLOAD_SIZE', 5 * 1024 * 1024); // 5MB
@@ -27,6 +32,7 @@ define('IMAGE_MAX_PIXELS', 25000000); // Reject decompression-bomb images before
 
 // Roles (seeded in database, mirrored here for quick reference in code)
 define('ROLE_ADMIN', 'Admin');
+define('ROLE_DEVELOPER', 'Developer');
 define('ROLE_HR', 'HR');
 define('ROLE_SUPERVISOR', 'Supervisor');
 define('ROLE_UNIT_HEAD', 'Unit Head');

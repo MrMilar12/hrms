@@ -22,7 +22,9 @@ class PdsController extends Controller
     /** Resolves which employee's PDS is being worked on, enforcing self-service vs HR access. */
     private function resolveEmployeeId(): ?int
     {
-        $requested = $this->input('employee_id');
+        $requestedToken = $this->input('employee_id');
+        $requested = $requestedToken !== null ? UrlId::decode((string) $requestedToken) : null;
+        if ($requestedToken !== null && $requested === null) return null;
         $own = Auth::employeeId();
 
         if ($requested !== null && (int) $requested !== $own) {
@@ -98,7 +100,7 @@ class PdsController extends Controller
             }
 
             $this->pdsModel->markSectionComplete($employeeId, $section, true);
-            AuditLogger::log('update', 'pds_' . $section, $employeeId);
+            AuditLogger::log('update', 'pds_' . $section, $employeeId, null, ['changed_fields' => array_keys($_POST)]);
 
             $this->json([
                 'success' => true,

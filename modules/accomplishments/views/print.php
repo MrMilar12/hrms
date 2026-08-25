@@ -85,7 +85,7 @@ foreach ($reviews as $review) {
     </div></section>
     <section class="section"><h2 class="section-heading">Supporting evidence</h2>
         <?php if ($attachments): ?><div class="evidence-grid">
-            <?php foreach ($attachments as $att): ?><figure class="evidence"><img src="<?= BASE_URL ?>/files/accomplishment-attachment/<?= (int) $att['id'] ?>" alt="Supporting evidence"><figcaption><?= printValue($att['caption'], 'Supporting evidence photo') ?></figcaption></figure><?php endforeach; ?>
+            <?php foreach ($attachments as $att): ?><figure class="evidence"><img src="<?= BASE_URL ?>/files/accomplishment-attachment/<?= UrlId::encode((int) $att['id']) ?>" alt="Supporting evidence"><figcaption><?= printValue($att['caption'], 'Supporting evidence photo') ?></figcaption></figure><?php endforeach; ?>
         </div><?php else: ?><div class="empty">No evidence photos were attached to this report.</div><?php endif; ?>
     </section>
     <?php if ($reviews): ?><section class="section"><h2 class="section-heading">Review history</h2>

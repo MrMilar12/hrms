@@ -96,10 +96,10 @@ function qs(array $overrides = []) {
 
 <div class="accomplishment-grid">
     <?php foreach ($accomplishments as $a): ?>
-        <a href="<?= BASE_URL ?>/accomplishments/<?= (int) $a['id'] ?>" class="accomplishment-card glass">
+        <a href="<?= BASE_URL ?>/accomplishments/<?= UrlId::encode((int) $a['id']) ?>" class="accomplishment-card glass">
             <div class="accomplishment-cover">
                 <?php if ($a['cover_attachment_id']): ?>
-                    <img src="<?= BASE_URL ?>/files/accomplishment-attachment/<?= (int) $a['cover_attachment_id'] ?>" alt="cover">
+                    <img src="<?= BASE_URL ?>/files/accomplishment-attachment/<?= UrlId::encode((int) $a['cover_attachment_id']) ?>" alt="cover">
                 <?php else: ?>
                     <div class="accomplishment-cover-placeholder">&#128247;</div>
                 <?php endif; ?>

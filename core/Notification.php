@@ -7,6 +7,7 @@ class Notification
         if ($userId <= 0 || $userId === (int) Auth::userId()) return;
         $stmt = Database::getInstance()->prepare('INSERT INTO notifications (user_id, message, link, is_read, created_at) VALUES (?, ?, ?, 0, NOW())');
         $stmt->execute([$userId, mb_substr($message, 0, 255), $link]);
+        AuditLogger::log('create', 'notifications', (int) Database::getInstance()->lastInsertId(), null, ['recipient_user_id' => $userId]);
     }
 
     public static function employees(array $employeeIds, string $message, ?string $link = null): void

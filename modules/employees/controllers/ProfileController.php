@@ -178,7 +178,7 @@ class ProfileController extends Controller
 
             $_SESSION['username'] = $username;
             $_SESSION['display_name'] = trim($personal['first_name'] . ' ' . $personal['surname']);
-            AuditLogger::log('update', 'profile', $employeeId);
+            AuditLogger::log('update', 'profile', $employeeId, null, ['changed_fields' => array_values(array_diff(array_keys($_POST), ['csrf_token']))]);
             $this->json(['success' => true, 'message' => 'Profile updated.']);
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) {
@@ -211,7 +211,7 @@ class ProfileController extends Controller
             $this->json([
                 'success' => true,
                 'message' => 'Profile picture updated.',
-                'photo_url' => BASE_URL . '/photo/' . $photoId,
+                'photo_url' => BASE_URL . '/photo/' . UrlId::encode($photoId),
             ]);
         } catch (RuntimeException $e) {
             $this->json(['success' => false, 'error' => $e->getMessage()], 422);

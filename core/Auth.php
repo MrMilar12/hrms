@@ -186,7 +186,25 @@ class Auth
 
     public static function can(string $permissionCode): bool
     {
+        // Developer is the protected system-owner role and automatically has
+        // current and future permissions without requiring a new RBAC mapping.
+        if (self::isDeveloper()) return true;
         return in_array($permissionCode, $_SESSION['permissions'] ?? [], true);
+    }
+
+    public static function isDeveloper(): bool
+    {
+        return self::roleName() === ROLE_DEVELOPER;
+    }
+
+    public static function requireDeveloper(): void
+    {
+        self::requireLogin();
+        if (!self::isDeveloper()) {
+            http_response_code(403);
+            echo '403 Forbidden: Developer access is required.';
+            exit;
+        }
     }
 
     public static function requirePermission(string $permissionCode): void

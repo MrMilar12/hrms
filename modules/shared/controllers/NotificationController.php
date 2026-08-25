@@ -13,6 +13,9 @@ class NotificationController extends Controller
         }
         $stmt = Database::getInstance()->prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ? AND is_read = 0');
         $stmt->execute([$notificationId, Auth::userId()]);
+        if ($stmt->rowCount() > 0) {
+            AuditLogger::log('mark_read', 'notifications', $notificationId, ['is_read' => 0], ['is_read' => 1]);
+        }
         $this->json(['success' => true, 'updated' => $stmt->rowCount()]);
     }
 }

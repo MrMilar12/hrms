@@ -66,10 +66,11 @@ $isEditing = !empty($accomplishment);
 
             <div id="existing-photo-grid" class="attachment-grid" style="margin-top:1rem;">
                 <?php foreach ($attachments as $attachment): ?>
-                <div class="attachment-item" id="existing-photo-<?= (int) $attachment['id'] ?>">
-                    <img class="thumb" src="<?= BASE_URL ?>/files/accomplishment-attachment/<?= (int) $attachment['id'] ?>" alt="Accomplishment evidence">
+                <?php $attachmentToken = UrlId::encode((int) $attachment['id']); ?>
+                <div class="attachment-item" id="existing-photo-<?= htmlspecialchars($attachmentToken) ?>">
+                    <img class="thumb" src="<?= BASE_URL ?>/files/accomplishment-attachment/<?= htmlspecialchars($attachmentToken) ?>" alt="Accomplishment evidence">
                     <?php if (!empty($attachment['caption'])): ?><div><?= htmlspecialchars($attachment['caption']) ?></div><?php endif; ?>
-                    <button type="button" class="btn btn-sm btn-danger" onclick="removeExistingPhoto(<?= (int) $attachment['id'] ?>)">Remove</button>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeExistingPhoto(<?= htmlspecialchars(json_encode($attachmentToken), ENT_QUOTES) ?>)">Remove</button>
                 </div>
                 <?php endforeach; ?>
             </div>
@@ -87,7 +88,7 @@ $isEditing = !empty($accomplishment);
 
 <script>
 const stagedPhotos = []; // { file, caption, previewUrl, uploaded }
-let accomplishmentId = <?= $isEditing ? (int) $accomplishment['id'] : 'null' ?>;
+let accomplishmentId = <?= $isEditing ? json_encode(UrlId::encode((int) $accomplishment['id'])) : 'null' ?>;
 let autosaveTimer = null;
 let savePromise = null;
 
@@ -198,7 +199,7 @@ async function ensureAccomplishmentSaved() {
             : `${window.BASE_URL}/accomplishments/store`;
         const result = await HRIS.postForm(endpoint, fd);
         if (result.success) {
-            if (!accomplishmentId) accomplishmentId = result.accomplishment_id;
+            if (!accomplishmentId) accomplishmentId = result.accomplishment_token;
             if (employeeField) employeeField.disabled = true;
             return true;
         }

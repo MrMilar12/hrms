@@ -43,7 +43,7 @@ require MODULES_PATH . '/shared/views/header.php';
             $workStation = $emp['current_school_station'] ?: ($emp['district'] ?: 'Not assigned');
             ?>
             <tr>
-                <td><div class="employee-directory-person"><?php if (!empty($emp['photo_id'])): ?><img src="<?= BASE_URL ?>/photo/<?= (int) $emp['photo_id'] ?>" alt=""><?php else: ?><span><?= htmlspecialchars($initial) ?></span><?php endif; ?><div><strong><?= htmlspecialchars($employeeName) ?></strong><small><?= htmlspecialchars($emp['employee_number']) ?></small></div></div></td>
+                <td><div class="employee-directory-person"><?php if (!empty($emp['photo_id'])): ?><img src="<?= BASE_URL ?>/photo/<?= UrlId::encode((int) $emp['photo_id']) ?>" alt=""><?php else: ?><span><?= htmlspecialchars($initial) ?></span><?php endif; ?><div><strong><?= htmlspecialchars($employeeName) ?></strong><small><?= htmlspecialchars($emp['employee_number']) ?></small></div></div></td>
                 <td><?= htmlspecialchars($emp['department_name'] ?? 'Not assigned') ?></td>
                 <td><?= htmlspecialchars($emp['position_title'] ?? 'Not assigned') ?></td>
                 <td><span class="record-chip"><?= htmlspecialchars($emp['personnel_type'] ?? 'Unclassified') ?></span></td>
@@ -57,7 +57,7 @@ require MODULES_PATH . '/shared/views/header.php';
                         <?= (int) $emp['pds_percent'] ?>%
                     </div>
                 </td>
-                <td><a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/employees/<?= (int) $emp['id'] ?>">View profile</a></td>
+                <td><a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/employees/<?= UrlId::encode((int) $emp['id']) ?>">View profile</a></td>
             </tr>
         <?php endforeach; ?>
         </tbody>

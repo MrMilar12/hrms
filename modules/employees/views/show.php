@@ -20,7 +20,7 @@ $accomplishmentStats = $relatedSummary['accomplishments'] ?? [];
 <main class="employee-record-page">
     <section class="employee-record-hero glass-card">
         <div class="employee-record-photo">
-            <?php if ($photo): ?><img src="<?= BASE_URL ?>/photo/<?= (int) $photo['id'] ?>" alt="Photo of <?= htmlspecialchars($fullName) ?>">
+            <?php if ($photo): ?><img src="<?= BASE_URL ?>/photo/<?= UrlId::encode((int) $photo['id']) ?>" alt="Photo of <?= htmlspecialchars($fullName) ?>">
             <?php else: ?><span><?= htmlspecialchars(strtoupper(substr($snapshot['first_name'] ?? $employee['employee_number'], 0, 1))) ?></span><?php endif; ?>
         </div>
         <div class="employee-record-identity">
@@ -28,7 +28,7 @@ $accomplishmentStats = $relatedSummary['accomplishments'] ?? [];
             <p><?= htmlspecialchars($value($employee['position_title'] ?? null)) ?> <span>&middot;</span> <?= htmlspecialchars($value($employee['department_name'] ?? null)) ?></p>
             <div class="employee-record-badges"><span class="status-pill"><span class="dot"></span><?= htmlspecialchars($employee['employment_status']) ?></span><span class="record-chip"><?= htmlspecialchars($value($snapshot['personnel_type'] ?? null, 'Unclassified')) ?></span><span class="record-chip">Employee # <?= htmlspecialchars($employee['employee_number']) ?></span></div>
         </div>
-        <div class="employee-record-actions"><a class="btn btn-primary" href="<?= BASE_URL ?>/pds?employee_id=<?= (int) $employee['id'] ?>">Edit PDS</a><a class="btn btn-secondary" href="<?= BASE_URL ?>/pds/print/<?= (int) $employee['id'] ?>" target="_blank">Print PDS</a></div>
+        <div class="employee-record-actions"><a class="btn btn-primary" href="<?= BASE_URL ?>/pds?employee_id=<?= UrlId::encode((int) $employee['id']) ?>">Edit PDS</a><a class="btn btn-secondary" href="<?= BASE_URL ?>/pds/print/<?= UrlId::encode((int) $employee['id']) ?>" target="_blank">Print PDS</a></div>
     </section>
 
     <section class="employee-record-metrics" aria-label="Employee record summary">
@@ -70,11 +70,11 @@ $accomplishmentStats = $relatedSummary['accomplishments'] ?? [];
 
     <div class="employee-related-grid">
         <section class="glass-card employee-record-section"><div class="record-section-heading"><div><span class="launcher-eyebrow">Workload</span><h2>Recent tasks</h2></div></div><div class="record-list">
-            <?php foreach ($recentRecords['tasks'] as $task): ?><a href="<?= BASE_URL ?>/tasks/<?= (int) $task['id'] ?>"><span><strong><?= htmlspecialchars($task['title']) ?></strong><small><?= htmlspecialchars($task['priority']) ?> priority<?= $task['due_date'] ? ' · Due ' . htmlspecialchars($task['due_date']) : '' ?></small></span><em><?= htmlspecialchars($task['status']) ?></em></a><?php endforeach; ?>
+            <?php foreach ($recentRecords['tasks'] as $task): ?><a href="<?= BASE_URL ?>/tasks/<?= UrlId::encode((int) $task['id']) ?>"><span><strong><?= htmlspecialchars($task['title']) ?></strong><small><?= htmlspecialchars($task['priority']) ?> priority<?= $task['due_date'] ? ' · Due ' . htmlspecialchars($task['due_date']) : '' ?></small></span><em><?= htmlspecialchars($task['status']) ?></em></a><?php endforeach; ?>
             <?php if (!$recentRecords['tasks']): ?><p class="record-empty">No assigned tasks yet.</p><?php endif; ?>
         </div></section>
         <section class="glass-card employee-record-section"><div class="record-section-heading"><div><span class="launcher-eyebrow">Performance records</span><h2>Recent accomplishments</h2></div><span class="record-chip"><?= (int) ($accomplishmentStats['pending'] ?? 0) ?> pending</span></div><div class="record-list">
-            <?php foreach ($recentRecords['accomplishments'] as $item): ?><a href="<?= BASE_URL ?>/accomplishments/<?= (int) $item['id'] ?>"><span><strong><?= htmlspecialchars($item['title']) ?></strong><small><?= htmlspecialchars($item['accomplishment_date']) ?></small></span><em><?= htmlspecialchars($item['status']) ?></em></a><?php endforeach; ?>
+            <?php foreach ($recentRecords['accomplishments'] as $item): ?><a href="<?= BASE_URL ?>/accomplishments/<?= UrlId::encode((int) $item['id']) ?>"><span><strong><?= htmlspecialchars($item['title']) ?></strong><small><?= htmlspecialchars($item['accomplishment_date']) ?></small></span><em><?= htmlspecialchars($item['status']) ?></em></a><?php endforeach; ?>
             <?php if (!$recentRecords['accomplishments']): ?><p class="record-empty">No accomplishment records yet.</p><?php endif; ?>
         </div></section>
     </div>

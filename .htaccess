@@ -1,15 +1,9 @@
-# Since /public is the intended web root (BASE_URL = /HRMS/public), but XAMPP's
-# docroot is htdocs (so http://localhost/HRMS/ is reachable directly), this only
-# adds a convenience redirect. The actual folder locks (config, core, modules,
-# storage, uploads, database) live in each of those folders' own .htaccess so
-# they can't interfere with access to /public.
-
 RewriteEngine On
 
-# Convenience redirect: /hrms/ -> /hrms/public/ (case-insensitive: Windows URLs
-# aren't guaranteed to match the folder's on-disk case, e.g. /hrms/ vs /HRMS/).
-# Uses an absolute URL path (not a relative substitution) because relative
-# RewriteRule targets in a per-directory .htaccess have been unreliable on
-# this Windows/Apache setup (observed producing a filesystem-path redirect).
-RewriteCond %{REQUEST_URI} ^/hrms/?$ [NC]
-RewriteRule ^$ /hrms/public/ [R=302,L]
+# Remove the implementation folder from old bookmarks, then internally route
+# clean /hrms/... URLs through the public front controller.
+RewriteCond %{THE_REQUEST} \s/+hrms/public(?:[/?\s]|$) [NC]
+RewriteRule ^public(?:/(.*))?$ /hrms/$1 [R=301,L,NE]
+
+RewriteCond %{REQUEST_URI} !^/hrms/public(?:/|$) [NC]
+RewriteRule ^(.*)$ public/$1 [L]

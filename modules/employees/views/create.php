@@ -56,7 +56,7 @@ document.getElementById('create-employee-form').addEventListener('submit', async
     const res = await fetch(`${window.BASE_URL}/employees/store`, { method: 'POST', body: formData });
     const result = await res.json();
     if (result.success) {
-        window.location.href = `${window.BASE_URL}/employees/${result.employee_id}`;
+        window.location.href = `${window.BASE_URL}/employees/${result.employee_token}`;
     } else {
         HRIS.flash(result.error || 'Failed to add employee.', 'error');
     }

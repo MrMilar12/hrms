@@ -24,13 +24,13 @@ require MODULES_PATH . '/shared/views/header.php';
     <?php foreach ($items as $item): ?>
         <div class="gallery-tile glass-light">
             <?php if ($item['cover_attachment_id']): ?>
-                <img src="<?= BASE_URL ?>/files/accomplishment-attachment/<?= (int) $item['cover_attachment_id'] ?>" alt="<?= htmlspecialchars($item['title']) ?>">
+                <img src="<?= BASE_URL ?>/files/accomplishment-attachment/<?= UrlId::encode((int) $item['cover_attachment_id']) ?>" alt="<?= htmlspecialchars($item['title']) ?>">
             <?php else: ?>
                 <div class="accomplishment-cover-placeholder" style="height:100%;">&#128247;</div>
             <?php endif; ?>
             <div class="gallery-tile-actions">
-                <a href="<?= BASE_URL ?>/accomplishments/<?= (int) $item['id'] ?>" title="View">&#128065;</a>
-                <?php if ($item['status'] === 'Approved'): ?><a href="<?= BASE_URL ?>/accomplishments/<?= (int) $item['id'] ?>/print" target="_blank" title="Download / Print">&#11015;</a><?php endif; ?>
+                <a href="<?= BASE_URL ?>/accomplishments/<?= UrlId::encode((int) $item['id']) ?>" title="View">&#128065;</a>
+                <?php if ($item['status'] === 'Approved'): ?><a href="<?= BASE_URL ?>/accomplishments/<?= UrlId::encode((int) $item['id']) ?>/print" target="_blank" title="Download / Print">&#11015;</a><?php endif; ?>
             </div>
             <div class="gallery-tile-overlay">
                 <strong><?= htmlspecialchars($item['title']) ?></strong>

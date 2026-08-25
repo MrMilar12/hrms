@@ -28,7 +28,7 @@ $priorityClass = fn($p) => 'priority-' . strtolower($p);
                 <span class="kanban-count"><?= count($items) ?></span>
             </div>
             <?php foreach ($items as $task): ?>
-                <a class="task-card" href="<?= BASE_URL ?>/tasks/<?= (int) $task['id'] ?>">
+                <a class="task-card" href="<?= BASE_URL ?>/tasks/<?= UrlId::encode((int) $task['id']) ?>">
                     <div class="task-title"><?= htmlspecialchars($task['title']) ?></div>
                     <div class="task-meta">
                         <span><span class="priority-dot <?= $priorityClass($task['priority']) ?>"></span><?= htmlspecialchars($task['priority']) ?></span>

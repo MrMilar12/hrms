@@ -276,8 +276,8 @@ class AccomplishmentController extends Controller
             $_SESSION['staff_created_accomplishments'][$accomplishmentId] = time();
         }
 
-        AuditLogger::log('create', 'accomplishments', $accomplishmentId);
-        $this->json(['success' => true, 'message' => 'Draft saved.', 'accomplishment_id' => $accomplishmentId]);
+        AuditLogger::log('create', 'accomplishments', $accomplishmentId, null, ['employee_id' => $employeeId, 'task_id' => $taskId, 'status' => 'Draft']);
+        $this->json(['success' => true, 'message' => 'Draft saved.', 'accomplishment_token' => UrlId::encode($accomplishmentId)]);
     }
 
     /** Autosave endpoint used while the employee is still editing a draft. */
@@ -318,7 +318,7 @@ class AccomplishmentController extends Controller
             'task_id' => $taskId,
         ]);
 
-        AuditLogger::log('update_draft', 'accomplishments', $accomplishmentId);
+        AuditLogger::log('update', 'accomplishments', $accomplishmentId, ['status' => $accomplishment['status']], ['changed_fields' => ['title', 'description', 'accomplishment_date', 'task_id']]);
 
         $this->json(['success' => true, 'message' => 'Draft saved.']);
     }
@@ -342,7 +342,7 @@ class AccomplishmentController extends Controller
         $this->model->submit($accomplishmentId);
         unset($_SESSION['staff_created_accomplishments'][$accomplishmentId]);
         AuditLogger::log('submit', 'accomplishments', $accomplishmentId, null, ['status' => 'For Review']);
-        Notification::permission('accomplishment.review', 'Accomplishment submitted for review: ' . $accomplishment['title'], BASE_URL . '/accomplishments/' . $accomplishmentId);
+        Notification::permission('accomplishment.review', 'Accomplishment submitted for review: ' . $accomplishment['title'], BASE_URL . '/accomplishments/' . UrlId::encode($accomplishmentId));
         $this->json(['success' => true, 'message' => 'Accomplishment submitted for review.']);
     }
 
@@ -412,13 +412,14 @@ class AccomplishmentController extends Controller
         }
 
         $comments = Validator::sanitizeString($_POST['comments'] ?? '');
-        $this->model->review($accomplishmentId, Auth::userId(), $decision, $comments ?: null);
+        $reviewId = $this->model->review($accomplishmentId, Auth::userId(), $decision, $comments ?: null);
 
-        AuditLogger::log('review', 'accomplishments', $accomplishmentId, null, ['status' => $decision]);
+        AuditLogger::log('update_status', 'accomplishments', $accomplishmentId, ['status' => 'For Review'], ['status' => $decision]);
+        AuditLogger::log('create', 'accomplishment_reviews', $reviewId, null, ['accomplishment_id' => $accomplishmentId, 'status' => $decision]);
         $notificationMessage = $decision === 'Approved'
             ? 'Your accomplishment “' . $accomplishment['title'] . '” was approved and is ready to print.'
             : 'Your accomplishment “' . $accomplishment['title'] . '” was returned for revision.';
-        Notification::employees([(int) $accomplishment['employee_id']], $notificationMessage, BASE_URL . '/accomplishments/' . $accomplishmentId);
+        Notification::employees([(int) $accomplishment['employee_id']], $notificationMessage, BASE_URL . '/accomplishments/' . UrlId::encode($accomplishmentId));
         $this->json(['success' => true, 'message' => "Accomplishment {$decision}."]);
     }
 
@@ -447,7 +448,7 @@ class AccomplishmentController extends Controller
             $result = Uploader::handleImage($_FILES['file'], $dir);
             $caption = Validator::sanitizeString($this->input('caption', ''));
 
-            $this->model->addAttachment(
+            $attachmentId = $this->model->addAttachment(
                 $accomplishmentId,
                 Auth::userId(),
                 $result['file_path'],
@@ -457,7 +458,7 @@ class AccomplishmentController extends Controller
                 $result['file_size']
             );
 
-            AuditLogger::log('upload_attachment', 'accomplishment_attachments', $accomplishmentId);
+            AuditLogger::log('create', 'accomplishment_attachments', $attachmentId, null, ['accomplishment_id' => $accomplishmentId, 'file_type' => $result['file_type']]);
             $this->json(['success' => true, 'message' => 'Photo uploaded.']);
         } catch (RuntimeException $e) {
             $this->json(['success' => false, 'error' => $e->getMessage()], 422);

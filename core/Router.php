@@ -65,6 +65,18 @@ class Router
             $pattern = preg_replace('#\{[a-zA-Z_]+\}#', '([^/]+)', $routePath);
             if (preg_match('#^' . $pattern . '$#', $path, $matches)) {
                 array_shift($matches);
+                preg_match_all('#\{([a-zA-Z_]+)\}#', $routePath, $parameterNames);
+                foreach ($parameterNames[1] as $index => $name) {
+                    if (in_array($name, ['id', 'aid', 'atid'], true)) {
+                        $decoded = UrlId::decode((string) ($matches[$index] ?? ''));
+                        if ($decoded === null) {
+                            http_response_code(404);
+                            echo '404 Not Found';
+                            return;
+                        }
+                        $matches[$index] = (string) $decoded;
+                    }
+                }
                 call_user_func_array($handler, $matches);
                 return;
             }

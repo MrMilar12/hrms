@@ -36,7 +36,7 @@ $badgeClass = 'badge-' . strtolower(str_replace(' ', '-', $task['status']));
                 <span class="assignee-avatar"><?= htmlspecialchars(strtoupper(substr($assignee['employee_name'], 0, 1))) ?></span>
                 <div class="task-assignee-copy"><strong><?= htmlspecialchars($assignee['employee_name']) ?></strong><small><?= htmlspecialchars($assignee['employee_number']) ?><?= $assignee['submitted_at'] ? ' · Submitted ' . htmlspecialchars($assignee['submitted_at']) : '' ?></small></div>
                 <?php if ($canChangeThis): ?>
-                    <select class="task-status-select" data-task-id="<?= (int) $task['id'] ?>" data-employee-id="<?= (int) $assignee['id'] ?>" aria-label="Status for <?= htmlspecialchars($assignee['employee_name']) ?>">
+                    <select class="task-status-select" data-task-id="<?= UrlId::encode((int) $task['id']) ?>" data-employee-id="<?= (int) $assignee['id'] ?>" aria-label="Status for <?= htmlspecialchars($assignee['employee_name']) ?>">
                         <?php foreach ($statuses as $status): ?><option value="<?= $status ?>" <?= $status === $assignee['status'] ? 'selected' : '' ?>><?= $status ?></option><?php endforeach; ?>
                     </select>
                 <?php else: ?>
@@ -61,8 +61,8 @@ $badgeClass = 'badge-' . strtolower(str_replace(' ', '-', $task['status']));
     <div class="attachment-grid" style="margin-top:1rem;">
         <?php foreach ($attachments as $att): ?>
             <div class="attachment-item">
-                <a href="<?= BASE_URL ?>/files/task-attachment/<?= (int) $att['id'] ?>" target="_blank">
-                    <img class="thumb" src="<?= BASE_URL ?>/files/task-attachment/<?= (int) $att['id'] ?>" alt="attachment">
+                <a href="<?= BASE_URL ?>/files/task-attachment/<?= UrlId::encode((int) $att['id']) ?>" target="_blank">
+                    <img class="thumb" src="<?= BASE_URL ?>/files/task-attachment/<?= UrlId::encode((int) $att['id']) ?>" alt="attachment">
                 </a>
                 <div><?= htmlspecialchars($att['caption'] ?? '') ?></div>
             </div>
@@ -106,7 +106,7 @@ $badgeClass = 'badge-' . strtolower(str_replace(' ', '-', $task['status']));
 </div>
 
 <script>
-const taskId = <?= (int) $task['id'] ?>;
+const taskId = <?= json_encode(UrlId::encode((int) $task['id'])) ?>;
 
 document.getElementById('attachment-form').addEventListener('submit', async (e) => {
     e.preventDefault();

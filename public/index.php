@@ -63,6 +63,8 @@ $router->post('/logout', fn() => (new AuthController())->logout());
 // ---- Dashboard ----
 $router->get('/', fn() => (new DashboardController())->index());
 $router->get('/dashboard', fn() => (new DashboardController())->index());
+$router->get('/updates', fn() => (new UpdateController())->index());
+$router->post('/updates/acknowledge', fn() => (new UpdateController())->acknowledge());
 
 // ---- Onboarding ----
 $router->get('/onboarding', fn() => (new OnboardingController())->index());
@@ -139,5 +141,9 @@ $router->post('/admin/departments/{id}/delete', fn($id) => (new AdminController(
 $router->get('/admin/positions', fn() => (new AdminController())->positions());
 $router->post('/admin/positions/store', fn() => (new AdminController())->storePosition());
 $router->post('/admin/positions/{id}/delete', fn($id) => (new AdminController())->deletePosition($id));
+$router->get('/admin/releases', fn() => (new AdminController())->releases());
+$router->post('/admin/releases/store', fn() => (new AdminController())->storeRelease());
+$router->post('/admin/releases/{id}/publish', fn($id) => (new AdminController())->publishRelease($id));
+$router->post('/admin/releases/sync', fn() => (new AdminController())->syncGitHubReleases());
 
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);

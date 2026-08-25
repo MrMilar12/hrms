@@ -3,10 +3,11 @@
 /** @var array $taskCounts */
 /** @var array $notifications */
 /** @var array $myAccomplishmentCounts */
+/** @var array $unseenReleases */
 require MODULES_PATH . '/shared/views/header.php';
 
 $firstName = explode(' ', trim(Auth::displayName()))[0] ?: 'there';
-$isAdmin = Auth::roleName() === ROLE_ADMIN;
+$isAdmin = Auth::roleName() === ROLE_ADMIN || Auth::isDeveloper();
 $myTaskTotal = array_sum($taskCounts);
 $myAccomplishmentTotal = array_sum($myAccomplishmentCounts);
 ?>
@@ -88,4 +89,34 @@ $myAccomplishmentTotal = array_sum($myAccomplishmentCounts);
         </section>
     </div>
 </section>
+
+<?php if ($unseenReleases): ?>
+<div class="release-modal-backdrop" id="release-modal" role="dialog" aria-modal="true" aria-labelledby="release-modal-title">
+    <div class="release-modal glass-strong">
+        <div class="release-modal-heading">
+            <div><span class="launcher-eyebrow">What's New</span><h2 id="release-modal-title">HRMS has been updated</h2></div>
+            <span class="release-version">v<?= htmlspecialchars($unseenReleases[0]['version']) ?></span>
+        </div>
+        <div class="release-modal-list">
+            <?php foreach ($unseenReleases as $release): ?>
+                <article class="release-note">
+                    <div class="release-note-title"><h3><?= htmlspecialchars($release['title']) ?></h3><time><?= htmlspecialchars(date('M j, Y', strtotime($release['released_at']))) ?></time></div>
+                    <div class="release-changes"><?= nl2br(htmlspecialchars($release['changes'])) ?></div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+        <div class="release-modal-actions"><a href="<?= BASE_URL ?>/updates" class="btn btn-secondary">View update history</a><button type="button" class="btn btn-primary" id="acknowledge-releases">Got it</button></div>
+    </div>
+</div>
+<script>
+document.getElementById('acknowledge-releases').addEventListener('click', async function () {
+    this.disabled = true;
+    const data = new FormData();
+    <?php foreach ($unseenReleases as $release): ?>data.append('release_ids[]', '<?= (int) $release['id'] ?>');<?php endforeach; ?>
+    const result = await HRIS.postForm(`${window.BASE_URL}/updates/acknowledge`, data);
+    if (result.success) document.getElementById('release-modal').remove();
+    else { this.disabled = false; HRIS.flash(result.error || 'Could not save your response.', 'error'); }
+});
+</script>
+<?php endif; ?>
 <?php require MODULES_PATH . '/shared/views/footer.php'; ?>

@@ -13,7 +13,7 @@ require MODULES_PATH . '/shared/views/header.php';
                 <td><?= htmlspecialchars($d['name']) ?></td>
                 <td><?= htmlspecialchars($d['parent_name'] ?? '—') ?></td>
                 <td><?= (int) $d['employee_count'] ?></td>
-                <td><button class="btn btn-sm btn-danger" onclick="deleteDepartment(<?= (int) $d['id'] ?>)">Delete</button></td>
+                <td><button class="btn btn-sm btn-danger" onclick="deleteDepartment(<?= htmlspecialchars(json_encode(UrlId::encode((int) $d['id'])), ENT_QUOTES) ?>)">Delete</button></td>
             </tr>
         <?php endforeach; ?>
         <?php if (!$departments): ?><tr><td colspan="4" style="text-align:center;color:var(--text-muted);">No departments yet.</td></tr><?php endif; ?>
