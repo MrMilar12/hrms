@@ -1,0 +1,11 @@
+{
+    "name": "hris/phase1",
+    "description": "HRMS Phase 1 - Task Management + PDS System",
+    "require": {
+        "php": ">=8.1"
+    },
+    "require-dev": {},
+    "config": {
+        "optimize-autoloader": true
+    }
+}

@@ -1,0 +1,13 @@
+/vendor/
+/uploads/photos/*
+/uploads/tasks/*
+/uploads/thumbnails/*
+!/uploads/photos/.gitkeep
+!/uploads/tasks/.gitkeep
+!/uploads/thumbnails/.gitkeep
+/storage/logs/*
+/storage/cache/*
+!/storage/logs/.gitkeep
+!/storage/cache/.gitkeep
+/storage/installed.lock
+.DS_Store
