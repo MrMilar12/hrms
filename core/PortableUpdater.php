@@ -15,8 +15,21 @@ class PortableUpdater
         $commit = self::githubJson('/commits/' . self::BRANCH);
         $remoteSha = (string) ($commit['sha'] ?? '');
         if (!preg_match('/^[a-f0-9]{40}$/', $remoteSha)) throw new RuntimeException('GitHub returned an invalid commit identifier.');
+        $workingCopySha = self::gitCommit('HEAD');
+        $trackedRemoteSha = self::gitCommit('refs/remotes/origin/' . self::BRANCH);
+        if ($workingCopySha !== null && $trackedRemoteSha !== null && hash_equals($workingCopySha, $trackedRemoteSha) && !hash_equals($remoteSha, $trackedRemoteSha)) {
+            $remoteSha = $trackedRemoteSha;
+            $commit = ['sha' => $remoteSha, 'commit' => ['message' => 'Current Git deployment synchronized with the updater.']];
+        }
         $state = Database::getInstance()->query('SELECT deployed_commit, deployed_version FROM system_update_state WHERE id = 1')->fetch();
         $localSha = (string) ($state['deployed_commit'] ?? '');
+        // A developer may deploy this checkout with Git instead of the web
+        // updater. In that case the files are already current, so synchronize
+        // the updater state instead of offering to install the same commit.
+        if ($workingCopySha !== null && hash_equals($workingCopySha, $remoteSha) && !hash_equals($localSha, $remoteSha)) {
+            $localSha = $remoteSha;
+            self::saveState($localSha, (string) ($state['deployed_version'] ?: self::version()));
+        }
         if ($localSha === '') {
             $localSha = (string) (Database::getInstance()->query('SELECT source_commit FROM system_releases WHERE source_commit IS NOT NULL ORDER BY released_at DESC, id DESC LIMIT 1')->fetchColumn() ?: $remoteSha);
             self::saveState($localSha, $state['deployed_version'] ?: self::version());
@@ -43,6 +56,7 @@ class PortableUpdater
     public static function apply(int $developerId): array
     {
         self::ensureDirectories();
+        self::writeProgress(2, 'Checking the available update...');
         $lock = fopen(STORAGE_PATH . '/cache/system-update.lock', 'c+');
         if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) throw new RuntimeException('Another update is already running.');
         $work = STORAGE_PATH . '/cache/update_' . bin2hex(random_bytes(6));
@@ -50,31 +64,43 @@ class PortableUpdater
         $status = self::status();
         $oldVersion = $status['current_version'];
         try {
-            if (!$status['update_available']) return ['updated' => false, 'message' => 'The system is already up to date.'];
+            if (!$status['update_available']) {
+                self::writeProgress(100, 'The system is already up to date.');
+                return ['updated' => false, 'message' => 'The system is already up to date.'];
+            }
             if (!$status['version_ready']) throw new RuntimeException('Publish a higher version notification for this GitHub commit before installing it.');
             if (!$status['deployment_writable']) throw new RuntimeException('PHP cannot write the application directory on this hosting account.');
             if (!class_exists('ZipArchive')) throw new RuntimeException('The PHP ZIP extension is required.');
             self::baselineCurrentMigrations();
+            self::writeProgress(12, 'Preparing the update workspace...');
             mkdir($work, 0750, true);
             $archive = $work . '/github-update.zip';
+            self::writeProgress(25, 'Downloading the update securely...');
             self::download('/zipball/' . $status['remote_sha'], $archive);
+            self::writeProgress(42, 'Verifying and extracting the update...');
             $source = self::extractAndLocateRoot($archive, $work . '/source');
             $newVersion = $status['new_version'];
 
             $backup = STORAGE_PATH . '/backups/' . date('Ymd_His') . '_before_v' . $newVersion . '.zip';
+            self::writeProgress(55, 'Backing up the current application...');
             self::setMaintenance(true);
+            self::writeProgress(68, 'Installing the new application files...');
             $installed = self::installArchive($source, $backup);
             file_put_contents(BASE_PATH . '/VERSION', $newVersion . PHP_EOL, LOCK_EX);
+            self::writeProgress(82, 'Applying database migrations...');
             $migrations = self::runNewMigrations();
+            self::writeProgress(92, 'Running the system health check...');
             self::healthCheck();
             self::saveState($status['remote_sha'], $newVersion);
             self::publish($developerId, $newVersion, $status['remote_message'], $status['remote_sha']);
             self::logDeployment($developerId, $oldVersion, $newVersion, $status['local_sha'], $status['remote_sha'], 'success', $status['remote_message'], $backup);
             self::setMaintenance(false);
             self::removeTree($work);
+            self::writeProgress(100, "HRMS {$newVersion} was installed successfully.");
             return ['updated' => true, 'version' => $newVersion, 'sha' => $status['remote_sha'], 'migrations' => $migrations,
                 'message' => "HRMS {$newVersion} was installed successfully."];
         } catch (Throwable $e) {
+            self::writeProgress(100, 'Update failed. Restoring the previous application files.');
             if ($backup && is_file($backup)) self::restoreFiles($backup, $installed);
             self::logDeployment($developerId, $oldVersion, null, $status['local_sha'] ?? null, $status['remote_sha'] ?? null, 'failed', $e->getMessage(), $backup);
             self::setMaintenance(false); self::removeTree($work); throw $e;
@@ -152,10 +178,25 @@ class PortableUpdater
         }
     }
 
+    public static function progress(): array
+    {
+        self::ensureDirectories();
+        $file = STORAGE_PATH . '/cache/system-update-progress.json';
+        if (!is_file($file)) return ['percent' => 0, 'message' => 'Waiting for the update to start...'];
+        $progress = json_decode((string) file_get_contents($file), true);
+        return is_array($progress) ? $progress : ['percent' => 0, 'message' => 'Preparing the update...'];
+    }
+
     private static function gitRemoteCommit(): ?array
     {
+        $sha = self::gitCommit('refs/remotes/origin/' . self::BRANCH);
+        return $sha === null ? null : ['sha' => $sha, 'commit' => ['message' => 'Cached remote branch status retrieved through Git.']];
+    }
+
+    private static function gitCommit(string $revision): ?string
+    {
         if (!is_dir(BASE_PATH . '/.git') || !function_exists('proc_open')) return null;
-        $command = ['git', '-c', 'safe.directory=' . BASE_PATH, 'rev-parse', 'refs/remotes/origin/' . self::BRANCH];
+        $command = ['git', '-c', 'safe.directory=' . BASE_PATH, 'rev-parse', $revision];
         $process = @proc_open($command, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, BASE_PATH);
         if (!is_resource($process)) return null;
         fclose($pipes[0]);
@@ -163,7 +204,7 @@ class PortableUpdater
         stream_get_contents($pipes[2]);
         fclose($pipes[1]); fclose($pipes[2]);
         if (proc_close($process) !== 0 || !preg_match('/^([a-f0-9]{40})(?:\s|$)/', trim((string) $output), $match)) return null;
-        return ['sha' => $match[1], 'commit' => ['message' => 'Cached remote branch status retrieved through Git.']];
+        return $match[1];
     }
 
     private static function extractAndLocateRoot(string $archive, string $destination): string
@@ -266,6 +307,8 @@ class PortableUpdater
     { $file = STORAGE_PATH . '/cache/maintenance.json'; if (!$on) { @unlink($file); return; } file_put_contents($file, json_encode(['message'=>'Installing a new HRMS version.','started_at'=>date(DATE_ATOM)]), LOCK_EX); }
     private static function ensureDirectories(): void
     { foreach ([STORAGE_PATH . '/cache', STORAGE_PATH . '/backups'] as $dir) if (!is_dir($dir)) mkdir($dir,0750,true); }
+    private static function writeProgress(int $percent, string $message): void
+    { self::ensureDirectories(); file_put_contents(STORAGE_PATH . '/cache/system-update-progress.json', json_encode(['percent'=>$percent,'message'=>$message,'updated_at'=>date(DATE_ATOM)]), LOCK_EX); }
     private static function removeTree(string $dir): void
     { if (!is_dir($dir)) return; $it=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::CHILD_FIRST); foreach($it as $item) $item->isDir()?@rmdir($item->getPathname()):@unlink($item->getPathname()); @rmdir($dir); }
 }
