@@ -76,6 +76,22 @@ CREATE TABLE users (
     FOREIGN KEY (role_id) REFERENCES roles(id)
 ) ENGINE=InnoDB;
 
+CREATE TABLE employee_work_profiles (
+    employee_id INT UNSIGNED PRIMARY KEY,
+    personnel_type ENUM('Teaching','Non-Teaching') NOT NULL DEFAULT 'Non-Teaching',
+    school_id_code VARCHAR(30) NULL,
+    item_number VARCHAR(60) NULL,
+    salary_grade VARCHAR(30) NULL,
+    plantilla_school_station VARCHAR(180) NULL,
+    current_school_station VARCHAR(180) NULL,
+    district VARCHAR(120) NULL,
+    grade_levels_taught VARCHAR(180) NULL,
+    specialization VARCHAR(180) NULL,
+    subjects_taught TEXT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE employee_photos (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     employee_id INT UNSIGNED NOT NULL,
@@ -108,6 +124,15 @@ CREATE TABLE notifications (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE rate_limits (
+    bucket_hash CHAR(64) NOT NULL,
+    window_start DATETIME NOT NULL,
+    hits INT UNSIGNED NOT NULL DEFAULT 1,
+    expires_at DATETIME NOT NULL,
+    PRIMARY KEY (bucket_hash, window_start),
+    KEY idx_rate_limits_expiry (expires_at)
+) ENGINE=InnoDB;
+
 CREATE TABLE system_settings (
     `key` VARCHAR(100) NOT NULL PRIMARY KEY,
     `value` TEXT NULL
@@ -132,15 +157,20 @@ CREATE TABLE pds_personal_info (
     blood_type VARCHAR(5) NULL,
     citizenship VARCHAR(50) NULL,
     dual_citizenship_country VARCHAR(100) NULL,
+    dual_citizenship_type ENUM('By Birth','By Naturalization') NULL,
     gsis_no VARCHAR(30) NULL,
     pagibig_no VARCHAR(30) NULL,
     philhealth_no VARCHAR(30) NULL,
     sss_no VARCHAR(30) NULL,
+    philsys_card_no VARCHAR(50) NULL,
     tin_no VARCHAR(30) NULL,
     agency_employee_no VARCHAR(30) NULL,
     telephone_no VARCHAR(30) NULL,
     mobile_no VARCHAR(30) NULL,
     email VARCHAR(150) NULL,
+    government_issued_id VARCHAR(100) NULL,
+    government_id_number VARCHAR(100) NULL,
+    government_id_issuance VARCHAR(150) NULL,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -165,6 +195,7 @@ CREATE TABLE pds_family_background (
     spouse_surname VARCHAR(100) NULL,
     spouse_first_name VARCHAR(100) NULL,
     spouse_middle_name VARCHAR(100) NULL,
+    spouse_name_extension VARCHAR(20) NULL,
     spouse_occupation VARCHAR(150) NULL,
     spouse_employer VARCHAR(150) NULL,
     spouse_business_address VARCHAR(255) NULL,
@@ -172,6 +203,7 @@ CREATE TABLE pds_family_background (
     father_surname VARCHAR(100) NULL,
     father_first_name VARCHAR(100) NULL,
     father_middle_name VARCHAR(100) NULL,
+    father_name_extension VARCHAR(20) NULL,
     mother_maiden_surname VARCHAR(100) NULL,
     mother_first_name VARCHAR(100) NULL,
     mother_middle_name VARCHAR(100) NULL,
@@ -282,6 +314,8 @@ CREATE TABLE pds_questionnaire (
     q35a_details VARCHAR(255) NULL,
     q35b_criminal_charged TINYINT(1) NULL,
     q35b_details VARCHAR(255) NULL,
+    q35b_date_filed DATE NULL,
+    q35b_status_cases VARCHAR(150) NULL,
     q35c_convicted TINYINT(1) NULL,
     q35c_details VARCHAR(255) NULL,
     q35d_separated_from_service TINYINT(1) NULL,
@@ -344,7 +378,10 @@ CREATE TABLE tasks (
 CREATE TABLE task_assignments (
     task_id INT UNSIGNED NOT NULL,
     employee_id INT UNSIGNED NOT NULL,
+    status ENUM('Open','In Progress','For Review','Done','Cancelled') NOT NULL DEFAULT 'Open',
+    submitted_at DATETIME NULL,
     assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (task_id, employee_id),
     KEY idx_task_assignments_employee_task (employee_id, task_id),
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
@@ -381,9 +418,11 @@ CREATE TABLE task_status_history (
     old_status VARCHAR(20) NULL,
     new_status VARCHAR(20) NOT NULL,
     changed_by INT UNSIGNED NOT NULL,
+    employee_id INT UNSIGNED NULL,
     changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
-    FOREIGN KEY (changed_by) REFERENCES users(id)
+    FOREIGN KEY (changed_by) REFERENCES users(id),
+    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- ==========================================================

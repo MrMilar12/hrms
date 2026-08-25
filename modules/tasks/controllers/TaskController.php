@@ -28,13 +28,43 @@ class TaskController extends Controller
         ]);
     }
 
+    public function calendar(): void
+    {
+        Auth::requirePermission('task.view');
+        $monthInput = (string) ($this->input('month') ?? date('Y-m'));
+        $month = DateTimeImmutable::createFromFormat('!Y-m', $monthInput);
+        if (!$month || $month->format('Y-m') !== $monthInput) {
+            $month = new DateTimeImmutable('first day of this month');
+        }
+        $firstDay = $month->modify('first day of this month');
+        $lastDay = $month->modify('last day of this month');
+        $employeeId = Auth::can('task.create') ? null : Auth::employeeId();
+        $tasks = $this->taskModel->calendarTasks($firstDay->format('Y-m-d'), $lastDay->format('Y-m-d'), $employeeId);
+        $tasksByDate = [];
+        foreach ($tasks as $task) $tasksByDate[$task['due_date']][] = $task;
+
+        $this->view('tasks', 'calendar', [
+            'pageTitle' => 'Task Calendar',
+            'month' => $month,
+            'tasksByDate' => $tasksByDate,
+            'canCreate' => Auth::can('task.create'),
+        ]);
+    }
+
     public function create(): void
     {
         Auth::requirePermission('task.create');
 
         $pdo = Database::getInstance();
         $departments = $pdo->query('SELECT id, name FROM departments ORDER BY name')->fetchAll();
-        $employees = $pdo->query('SELECT id, employee_number FROM employees ORDER BY employee_number')->fetchAll();
+        $employees = $pdo->query(
+            "SELECT e.id, e.employee_number, e.department_id, d.name AS department_name,
+                    COALESCE(NULLIF(TRIM(CONCAT(pi.first_name, ' ', pi.surname)), ''), e.employee_number) AS employee_name
+             FROM employees e
+             LEFT JOIN departments d ON d.id = e.department_id
+             LEFT JOIN pds_personal_info pi ON pi.employee_id = e.id
+             ORDER BY employee_name, e.employee_number"
+        )->fetchAll();
 
         $this->view('tasks', 'create', [
             'pageTitle' => 'New Task',
@@ -59,6 +89,24 @@ class TaskController extends Controller
             return;
         }
 
+        $employeeIds = array_values(array_unique(array_filter(
+            array_map('intval', (array) ($_POST['assignees'] ?? [])),
+            fn(int $id): bool => $id > 0
+        )));
+        if (!$employeeIds) {
+            $this->json(['success' => false, 'error' => 'Select at least one employee.'], 422);
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($employeeIds), '?'));
+        $validEmployeeStmt = Database::getInstance()->prepare("SELECT id FROM employees WHERE id IN ($placeholders)");
+        $validEmployeeStmt->execute($employeeIds);
+        $validEmployeeIds = array_map('intval', $validEmployeeStmt->fetchAll(PDO::FETCH_COLUMN));
+        if (count($validEmployeeIds) !== count($employeeIds)) {
+            $this->json(['success' => false, 'error' => 'One or more selected employees are invalid.'], 422);
+            return;
+        }
+
         $taskId = $this->taskModel->insert([
             'title' => Validator::sanitizeString($_POST['title']),
             'description' => Validator::sanitizeString($_POST['description'] ?? ''),
@@ -69,10 +117,9 @@ class TaskController extends Controller
             'created_by' => Auth::userId(),
         ]);
 
-        $employeeIds = array_map('intval', $_POST['assignees'] ?? []);
-        if ($employeeIds) {
-            $this->taskModel->assign($taskId, $employeeIds);
-        }
+        $this->taskModel->assign($taskId, $validEmployeeIds);
+
+        Notification::employees($validEmployeeIds, 'New task assigned: ' . Validator::sanitizeString($_POST['title']), BASE_URL . '/tasks/' . $taskId);
 
         AuditLogger::log('create', 'tasks', $taskId);
         $this->json(['success' => true, 'message' => 'Task created.', 'task_id' => $taskId]);
@@ -95,15 +142,18 @@ class TaskController extends Controller
             return;
         }
 
+        $assignees = $this->taskModel->assignees($taskId);
         $this->view('tasks', 'show', [
             'pageTitle' => $task['title'],
             'task' => $task,
-            'assignees' => $this->taskModel->assignees($taskId),
+            'assignees' => $assignees,
             'attachments' => $this->taskModel->attachments($taskId),
             'comments' => $this->taskModel->comments($taskId),
             'history' => $this->taskModel->statusHistory($taskId),
             'statuses' => self::VALID_STATUSES,
             'canUpdateStatus' => Auth::can('task.update_status'),
+            'currentEmployeeId' => Auth::employeeId(),
+            'canManageAssignments' => Auth::can('task.create'),
         ]);
     }
 
@@ -125,15 +175,21 @@ class TaskController extends Controller
             return;
         }
 
-        if (!Auth::can('task.create') && !$this->taskModel->isAssignee($taskId, (int) Auth::employeeId())) {
+        $employeeId = Auth::can('task.create') && !empty($input['employee_id'])
+            ? (int) $input['employee_id']
+            : (int) Auth::employeeId();
+        if (!$employeeId || !$this->taskModel->isAssignee($taskId, $employeeId)) {
             $this->json(['success' => false, 'error' => 'Not authorized.'], 403);
             return;
         }
 
-        $this->taskModel->updateStatus($taskId, $status, Auth::userId());
-        AuditLogger::log('update_status', 'tasks', $taskId, null, ['status' => $status]);
+        $this->taskModel->updateAssignmentStatus($taskId, $employeeId, $status, Auth::userId());
+        AuditLogger::log('update_assignment_status', 'task_assignments', $taskId, null, ['employee_id' => $employeeId, 'status' => $status]);
+        $task = $this->taskModel->find($taskId);
+        Notification::employees([$employeeId], 'Your task “' . ($task['title'] ?? 'Task') . '” is now ' . $status . '.', BASE_URL . '/tasks/' . $taskId);
+        if (!empty($task['created_by'])) Notification::user((int) $task['created_by'], 'Task update: “' . $task['title'] . '” is now ' . $status . ' for one assignee.', BASE_URL . '/tasks/' . $taskId);
 
-        $this->json(['success' => true, 'message' => 'Status updated to ' . $status . '.']);
+        $this->json(['success' => true, 'message' => 'Individual task status updated to ' . $status . '.']);
     }
 
     public function addComment(string $id): void
@@ -142,6 +198,10 @@ class TaskController extends Controller
         $this->requireCsrf();
 
         $taskId = (int) $id;
+        if (!$this->canAccessTask($taskId)) {
+            $this->json(['success' => false, 'error' => 'Not authorized to access this task.'], 403);
+            return;
+        }
         $comment = Validator::sanitizeString($this->input('comment', ''));
         if ($comment === '') {
             $this->json(['success' => false, 'error' => 'Comment cannot be empty.'], 422);
@@ -149,6 +209,11 @@ class TaskController extends Controller
         }
 
         $this->taskModel->addComment($taskId, Auth::userId(), $comment);
+        AuditLogger::log('add_comment', 'task_comments', $taskId);
+        $task = $this->taskModel->find($taskId);
+        $assigneeIds = array_column($this->taskModel->assignees($taskId), 'id');
+        Notification::employees($assigneeIds, 'New comment on task: ' . ($task['title'] ?? 'Task'), BASE_URL . '/tasks/' . $taskId);
+        if (!empty($task['created_by'])) Notification::user((int) $task['created_by'], 'New comment on task: ' . $task['title'], BASE_URL . '/tasks/' . $taskId);
         $this->json(['success' => true, 'message' => 'Comment added.']);
     }
 
@@ -158,6 +223,10 @@ class TaskController extends Controller
         $this->requireCsrf();
 
         $taskId = (int) $id;
+        if (!$this->canAccessTask($taskId)) {
+            $this->json(['success' => false, 'error' => 'Not authorized to access this task.'], 403);
+            return;
+        }
         if (empty($_FILES['file'])) {
             $this->json(['success' => false, 'error' => 'No file uploaded.'], 400);
             return;
@@ -183,5 +252,14 @@ class TaskController extends Controller
         } catch (RuntimeException $e) {
             $this->json(['success' => false, 'error' => $e->getMessage()], 422);
         }
+    }
+
+    private function canAccessTask(int $taskId): bool
+    {
+        if ($taskId <= 0 || !$this->taskModel->find($taskId)) {
+            return false;
+        }
+        return Auth::can('task.create')
+            || (Auth::employeeId() && $this->taskModel->isAssignee($taskId, (int) Auth::employeeId()));
     }
 }

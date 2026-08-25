@@ -40,6 +40,16 @@ class Uploader
             throw new RuntimeException('File content does not match an allowed image type.');
         }
 
+        $dimensions = @getimagesize($file['tmp_name']);
+        if (!$dimensions || empty($dimensions[0]) || empty($dimensions[1])) {
+            throw new RuntimeException('The uploaded file is not a valid image.');
+        }
+        $width = (int) $dimensions[0];
+        $height = (int) $dimensions[1];
+        if ($width > intdiv(IMAGE_MAX_PIXELS, $height)) {
+            throw new RuntimeException('Image dimensions are too large.');
+        }
+
         $decoder = match ($mimeType) {
             'image/jpeg' => 'imagecreatefromjpeg',
             'image/png' => 'imagecreatefrompng',

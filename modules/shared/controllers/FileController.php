@@ -34,7 +34,11 @@ class FileController extends Controller
         Auth::requirePermission('task.view');
 
         $pdo = Database::getInstance();
-        $stmt = $pdo->prepare('SELECT * FROM task_attachments WHERE id = ?');
+        $stmt = $pdo->prepare(
+            'SELECT att.*
+             FROM task_attachments att
+             WHERE att.id = ?'
+        );
         $stmt->execute([(int) $id]);
         $attachment = $stmt->fetch();
 
@@ -42,6 +46,18 @@ class FileController extends Controller
             http_response_code(404);
             echo 'Not found.';
             return;
+        }
+
+        if (!Auth::can('task.create')) {
+            $access = $pdo->prepare(
+                'SELECT 1 FROM task_assignments WHERE task_id = ? AND employee_id = ? LIMIT 1'
+            );
+            $access->execute([(int) $attachment['task_id'], (int) Auth::employeeId()]);
+            if (!$access->fetchColumn()) {
+                http_response_code(403);
+                echo 'Forbidden.';
+                return;
+            }
         }
 
         $this->stream($attachment['file_path']);
@@ -85,6 +101,8 @@ class FileController extends Controller
 
         $mime = mime_content_type($path) ?: 'application/octet-stream';
         header('Content-Type: ' . $mime);
+        header('X-Content-Type-Options: nosniff');
+        header('Content-Disposition: inline; filename="attachment"');
         header('Content-Length: ' . filesize($path));
         header('Cache-Control: private, max-age=3600');
         readfile($path);

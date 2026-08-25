@@ -23,9 +23,11 @@ $statusBadge = fn($s) => 'badge-' . strtolower(str_replace(' ', '-', $s === 'App
     </div>
 
     <div style="margin-top:1rem; display:flex; gap:0.6rem; flex-wrap:wrap;">
-        <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/accomplishments/<?= (int) $accomplishment['id'] ?>/print" target="_blank">&#11015; Download / Print</a>
-        <?php if ($isOwner && in_array($accomplishment['status'], ['Draft', 'Returned'], true)): ?>
-            <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/accomplishments/create">Edit as new draft</a>
+        <?php if ($accomplishment['status'] === 'Approved'): ?>
+            <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/accomplishments/<?= (int) $accomplishment['id'] ?>/print" target="_blank">&#11015; Download / Print</a>
+        <?php endif; ?>
+        <?php if ($isOwner && !$canReview && in_array($accomplishment['status'], ['Draft', 'Returned'], true)): ?>
+            <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/accomplishments/<?= (int) $accomplishment['id'] ?>/edit">Edit accomplishment</a>
             <button class="btn btn-primary btn-sm" id="btn-submit-now">Submit for Review</button>
         <?php endif; ?>
     </div>
@@ -98,11 +100,47 @@ document.getElementById('btn-submit-now')?.addEventListener('click', async () =>
 });
 
 async function review(decision) {
+    let approvalPassword = '';
+    if (decision === 'Approved') {
+        if (window.Swal) {
+            const confirmation = await Swal.fire({
+                title: 'Approve accomplishment?',
+                text: 'Enter your account password to confirm this approval.',
+                icon: 'question',
+                input: 'password',
+                inputPlaceholder: 'Account password',
+                inputAttributes: { autocomplete: 'current-password' },
+                showCancelButton: true,
+                confirmButtonText: 'Confirm approval',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#3b6fe0',
+                reverseButtons: true,
+                inputValidator: value => !value ? 'Password is required.' : undefined
+            });
+            if (!confirmation.isConfirmed) return;
+            approvalPassword = confirmation.value;
+        } else {
+            approvalPassword = window.prompt('Enter your account password to confirm approval:') || '';
+            if (!approvalPassword) return;
+        }
+    }
     const formData = new FormData();
     formData.append('decision', decision);
     formData.append('comments', document.getElementById('review-comments').value);
+    if (decision === 'Approved') formData.append('approval_password', approvalPassword);
     const result = await HRIS.postForm(`${window.BASE_URL}/accomplishments/${accomplishmentId}/review`, formData);
-    if (result.success) { window.location.reload(); } else { HRIS.flash(result.error || 'Review failed.', 'error'); }
+    if (result.success) {
+        if (window.Swal) {
+            await Swal.fire({title: 'Approved', text: 'The accomplishment was approved successfully.', icon: 'success', confirmButtonColor: '#3b6fe0'});
+        }
+        window.location.reload();
+    } else {
+        if (window.Swal && decision === 'Approved') {
+            Swal.fire({title: 'Approval not completed', text: result.error || 'Review failed.', icon: 'error', confirmButtonColor: '#3b6fe0'});
+        } else {
+            HRIS.flash(result.error || 'Review failed.', 'error');
+        }
+    }
 }
 document.getElementById('btn-approve')?.addEventListener('click', () => review('Approved'));
 document.getElementById('btn-return')?.addEventListener('click', () => review('Returned'));

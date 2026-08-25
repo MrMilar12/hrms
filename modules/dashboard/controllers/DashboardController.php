@@ -17,7 +17,7 @@ class DashboardController extends Controller
         $taskCounts = [];
         if ($employeeId) {
             $stmt = $pdo->prepare(
-                'SELECT t.status, COUNT(*) AS total FROM tasks t
+                'SELECT ta.status, COUNT(*) AS total FROM tasks t
                  JOIN task_assignments ta ON ta.task_id = t.id
                  WHERE ta.employee_id = ? GROUP BY t.status'
             );
@@ -35,7 +35,7 @@ class DashboardController extends Controller
         $myAccomplishmentCounts = $employeeId ? $accomplishmentModel->statusCounts($employeeId) : [];
         $accomplishmentCounts = Auth::can('accomplishment.view_all') ? $accomplishmentModel->globalStatusCounts() : null;
 
-        $notifStmt = $pdo->prepare('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 10');
+        $notifStmt = $pdo->prepare('SELECT * FROM notifications WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC LIMIT 10');
         $notifStmt->execute([Auth::userId()]);
 
         $this->view('dashboard', 'index', [

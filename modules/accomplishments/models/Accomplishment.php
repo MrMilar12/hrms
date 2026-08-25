@@ -67,21 +67,25 @@ class Accomplishment extends Model
         return $stmt->fetchAll();
     }
 
-    /** Employees who have never submitted an accomplishment (no row past the Draft stage). */
-    public function employeesWithoutSubmission(): array
+    /** Employees without a submitted accomplishment inside a reporting period. */
+    public function employeesWithoutSubmission(string $periodStart, string $periodEnd): array
     {
-        $stmt = $this->db->query(
+        $stmt = $this->db->prepare(
             'SELECT e.id, e.employee_number, d.name AS department_name, p.title AS position_title,
                     COALESCE(NULLIF(TRIM(CONCAT(pi.first_name, \' \', pi.surname)), \'\'), e.employee_number) AS employee_name
              FROM employees e
              LEFT JOIN departments d ON d.id = e.department_id
              LEFT JOIN positions p ON p.id = e.position_id
              LEFT JOIN pds_personal_info pi ON pi.employee_id = e.id
-             WHERE e.id NOT IN (
-                 SELECT DISTINCT employee_id FROM accomplishments WHERE status <> \'Draft\'
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM accomplishments a
+                 WHERE a.employee_id = e.id
+                   AND a.status <> \'Draft\'
+                   AND a.accomplishment_date BETWEEN ? AND ?
              )
              ORDER BY e.employee_number'
         );
+        $stmt->execute([$periodStart, $periodEnd]);
         return $stmt->fetchAll();
     }
 
@@ -89,11 +93,14 @@ class Accomplishment extends Model
     {
         $stmt = $this->db->prepare(
             'SELECT a.*, e.employee_number, t.title AS task_title,
+                    p.title AS position_title, d.name AS department_name,
                     COALESCE(NULLIF(TRIM(CONCAT(pi.first_name, \' \', pi.surname)), \'\'), e.employee_number) AS employee_name
              FROM accomplishments a
              JOIN employees e ON e.id = a.employee_id
              LEFT JOIN tasks t ON t.id = a.task_id
              LEFT JOIN pds_personal_info pi ON pi.employee_id = e.id
+             LEFT JOIN positions p ON p.id = e.position_id
+             LEFT JOIN departments d ON d.id = e.department_id
              WHERE a.id = ?'
         );
         $stmt->execute([$id]);
@@ -174,8 +181,15 @@ class Accomplishment extends Model
     public function reviews(int $accomplishmentId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT r.*, u.username AS reviewer_username FROM accomplishment_reviews r
+            'SELECT r.*, u.username AS reviewer_username,
+                    COALESCE(NULLIF(TRIM(CONCAT(pi.first_name, \' \', pi.surname)), \'\'), u.username) AS reviewer_name,
+                    p.title AS reviewer_position, d.name AS reviewer_department
+             FROM accomplishment_reviews r
              JOIN users u ON u.id = r.reviewed_by
+             LEFT JOIN employees e ON e.id = u.employee_id
+             LEFT JOIN pds_personal_info pi ON pi.employee_id = e.id
+             LEFT JOIN positions p ON p.id = e.position_id
+             LEFT JOIN departments d ON d.id = e.department_id
              WHERE r.accomplishment_id = ? ORDER BY r.reviewed_at DESC'
         );
         $stmt->execute([$accomplishmentId]);

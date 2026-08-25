@@ -45,6 +45,11 @@ PHP (procedural-core, MVC-organized) + MySQL (InnoDB) + vanilla JS, styled with 
 If you installed before the Accomplishments module existed, run the migration once:
 ```
 mysql -u root -p hris < database/migrations/002_accomplishments.sql
+mysql -u root -p hris < database/migrations/003_security.sql
+mysql -u root -p hris < database/migrations/004_individual_task_submissions.sql
+mysql -u root -p hris < database/migrations/005_employee_teaching_profile.sql
+mysql -u root -p hris < database/migrations/006_scalability_foundation.sql
+mysql -u root -p hris < database/migrations/007_pds_2026_fields.sql
 ```
 
 ## Glass Design System
@@ -61,4 +66,16 @@ wired to a toggle). Respects `prefers-reduced-motion`.
 - **PDF export**: `pds/print/{id}` currently renders a print-friendly HTML page (browser "Print/Save as PDF") rather than a TCPDF/mPDF-generated, pixel-exact CS Form 212 PDF. Wire up `composer require tecnickcom/tcpdf`, then replace `modules/employees/controllers/PdsController::print()` with PDF generation + caching under `/storage/cache/pds/{employee_id}.pdf`, invalidated on `pds_*` table updates.
 - **Dark mode toggle**: variables exist (`[data-theme="dark"]`) but no UI switch wired up yet.
 - **OPcache / production hardening**: enable OPcache and set `env` to `prod` in `config/app.php` before deploying.
-- **Notifications**: table + dashboard/header read exist; no producer yet (e.g., notify assignees when a task is created/status changes) — hook into `TaskController` when ready.
+
+## Production scaling
+
+Migration `006_scalability_foundation.sql` adds shared rate-limit storage and indexes for the
+highest-traffic queries. Employee and account lists use server-side pagination, and versioned
+static assets are cached by the browser for one year.
+
+For large production traffic, do not deploy on a single XAMPP host. Put at least two stateless
+PHP web nodes behind a load balancer, store sessions and rate-limit counters in Redis, enable
+PHP OPcache, serve static assets through a CDN, and use a managed MySQL service with a connection
+pool/proxy, backups, monitoring, and read replicas where measurements justify them. Run a staged
+load test against a production-like environment before setting a concurrency target; 100,000
+registered accounts is very different from 100,000 simultaneous active requests.

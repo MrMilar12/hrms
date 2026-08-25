@@ -5,6 +5,7 @@ INSERT INTO roles (name, description) VALUES
     ('Admin', 'Full system access'),
     ('HR', 'Manages employees, PDS, and reports'),
     ('Supervisor', 'Manages department tasks'),
+    ('Unit Head', 'Manages unit employees, assignments, reviews, and reports'),
     ('Employee', 'Self-service: own PDS and assigned tasks');
 
 INSERT INTO permissions (code, description) VALUES
@@ -36,6 +37,11 @@ WHERE r.name = 'HR' AND p.code IN ('employee.view','employee.manage','pds.edit_o
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
 WHERE r.name = 'Supervisor' AND p.code IN ('employee.view','pds.edit_own','task.view','task.create','task.assign','task.update_status','accomplishment.create','accomplishment.view_all','accomplishment.review','report.view');
+
+-- Unit Head: unit-level task, accomplishment review, employee view, and reports
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
+WHERE r.name = 'Unit Head' AND p.code IN ('employee.view','pds.edit_own','task.view','task.create','task.assign','task.update_status','accomplishment.create','accomplishment.view_all','accomplishment.review','report.view');
 
 -- Employee: self-service only
 INSERT INTO role_permissions (role_id, permission_id)

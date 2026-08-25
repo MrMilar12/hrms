@@ -21,8 +21,8 @@ require MODULES_PATH . '/shared/views/header.php';
                 </select>
             </div>
             <div class="form-group"><label>Position</label>
-                <select name="position_id">
-                    <option value="">--</option>
+                <select name="position_id" data-searchable-select data-search-placeholder="Search government positions...">
+                    <option value="">Select position</option>
                     <?php foreach ($positions as $p): ?><option value="<?= (int) $p['id'] ?>"><?= htmlspecialchars($p['title']) ?></option><?php endforeach; ?>
                 </select>
             </div>

@@ -5,10 +5,15 @@ class Auth
 {
     private const MAX_FAILED_ATTEMPTS = 5;
     private const LOCKOUT_MINUTES = 15;
+    private const SESSION_IDLE_SECONDS = 1800;
+    private const TWO_FACTOR_PENDING_SECONDS = 300;
 
     public static function start(): void
     {
         if (session_status() === PHP_SESSION_NONE) {
+            ini_set('session.use_strict_mode', '1');
+            ini_set('session.use_only_cookies', '1');
+            ini_set('session.gc_maxlifetime', (string) self::SESSION_IDLE_SECONDS);
             session_name(SESSION_NAME);
             session_set_cookie_params([
                 'lifetime' => 0,
@@ -18,6 +23,13 @@ class Auth
                 'secure' => self::isHttps(),
             ]);
             session_start();
+
+            $lastActivity = (int) ($_SESSION['last_activity_at'] ?? 0);
+            if ($lastActivity > 0 && time() - $lastActivity > self::SESSION_IDLE_SECONDS) {
+                self::clearSession();
+                session_start();
+            }
+            $_SESSION['last_activity_at'] = time();
         }
     }
 
@@ -48,15 +60,18 @@ class Auth
         $user = $stmt->fetch();
 
         if (!$user || $user['status'] !== 'active') {
+            AuditLogger::log('login_failed', 'users', $user ? (int) $user['id'] : null, null, ['reason' => 'invalid_or_inactive_account']);
             return 'invalid';
         }
 
         if ($user['locked_until'] && strtotime($user['locked_until']) > time()) {
+            AuditLogger::log('login_blocked', 'users', (int) $user['id'], null, ['reason' => 'account_lockout']);
             return 'locked';
         }
 
         if (!password_verify($password, $user['password_hash'])) {
             self::registerFailedAttempt($pdo, (int) $user['id'], (int) $user['failed_login_attempts']);
+            AuditLogger::log('login_failed', 'users', (int) $user['id'], null, ['reason' => 'invalid_credentials']);
             return 'invalid';
         }
 
@@ -66,6 +81,7 @@ class Auth
         if ((int) $user['two_factor_enabled'] === 1) {
             session_regenerate_id(true);
             $_SESSION['pending_2fa_user_id'] = (int) $user['id'];
+            $_SESSION['pending_2fa_started_at'] = time();
             return 'needs_2fa';
         }
 
@@ -89,7 +105,9 @@ class Auth
     public static function verifyTwoFactorCode(string $code): bool
     {
         $userId = $_SESSION['pending_2fa_user_id'] ?? null;
-        if (!$userId) {
+        $startedAt = (int) ($_SESSION['pending_2fa_started_at'] ?? 0);
+        if (!$userId || !$startedAt || time() - $startedAt > self::TWO_FACTOR_PENDING_SECONDS) {
+            unset($_SESSION['pending_2fa_user_id'], $_SESSION['pending_2fa_started_at']);
             return false;
         }
 
@@ -99,16 +117,17 @@ class Auth
              FROM users u
              JOIN roles r ON r.id = u.role_id
              LEFT JOIN pds_personal_info pi ON pi.employee_id = u.employee_id
-             WHERE u.id = ? LIMIT 1'
+             WHERE u.id = ? AND u.status = \'active\' AND u.two_factor_enabled = 1 LIMIT 1'
         );
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
 
         if (!$user || !TwoFactor::verify($user['two_factor_secret'], $code)) {
+            AuditLogger::log('two_factor_failed', 'users', $user ? (int) $user['id'] : (int) $userId, null, ['reason' => 'invalid_or_expired_code']);
             return false;
         }
 
-        unset($_SESSION['pending_2fa_user_id']);
+        unset($_SESSION['pending_2fa_user_id'], $_SESSION['pending_2fa_started_at']);
         self::completeLogin($user);
         return true;
     }
@@ -129,11 +148,13 @@ class Auth
         $_SESSION['employee_id'] = $user['employee_id'] !== null ? (int) $user['employee_id'] : null;
         $_SESSION['permissions'] = self::loadPermissions((int) $user['role_id']);
         $_SESSION['display_name'] = trim(($user['first_name'] ?? '') . ' ' . ($user['surname'] ?? '')) ?: $user['username'];
-        $_SESSION['show_app_drawer'] = true;
-
+        $_SESSION['personnel_setup_complete'] = self::hasPersonnelClassification($_SESSION['employee_id']);
+        $_SESSION['personal_details_complete'] = self::hasRequiredPersonalDetails($_SESSION['employee_id']);
+        $_SESSION['last_activity_at'] = time();
         $pdo = Database::getInstance();
         $update = $pdo->prepare('UPDATE users SET last_login = NOW() WHERE id = ?');
         $update->execute([$user['id']]);
+        AuditLogger::log('login', 'users', (int) $user['id'], null, ['result' => 'success']);
     }
 
     private static function loadPermissions(int $roleId): array
@@ -196,14 +217,84 @@ class Auth
         return $_SESSION['display_name'] ?? ($_SESSION['username'] ?? '');
     }
 
+    private static function hasPersonnelClassification(?int $employeeId): bool
+    {
+        if (!$employeeId) return true;
+        $stmt = Database::getInstance()->prepare("SELECT 1 FROM employee_work_profiles WHERE employee_id = ? AND personnel_type IN ('Teaching', 'Non-Teaching')");
+        $stmt->execute([$employeeId]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    public static function needsPersonnelSetup(): bool
+    {
+        if (!self::check() || !self::employeeId()) return false;
+        if (!array_key_exists('personnel_setup_complete', $_SESSION)) {
+            $_SESSION['personnel_setup_complete'] = self::hasPersonnelClassification(self::employeeId());
+        }
+        return !$_SESSION['personnel_setup_complete'];
+    }
+
+    public static function completePersonnelSetup(): void
+    {
+        $_SESSION['personnel_setup_complete'] = true;
+    }
+
+    private static function hasRequiredPersonalDetails(?int $employeeId): bool
+    {
+        if (!$employeeId) return true;
+        $stmt = Database::getInstance()->prepare(
+            "SELECT 1
+             FROM pds_personal_info pi
+             JOIN pds_addresses a ON a.employee_id = pi.employee_id AND a.address_type = 'Residential'
+             WHERE pi.employee_id = ?
+               AND NULLIF(TRIM(pi.first_name), '') IS NOT NULL
+               AND NULLIF(TRIM(pi.surname), '') IS NOT NULL
+               AND pi.birth_date IS NOT NULL
+               AND pi.sex IN ('Male', 'Female')
+               AND pi.civil_status IS NOT NULL
+               AND NULLIF(TRIM(pi.mobile_no), '') IS NOT NULL
+               AND NULLIF(TRIM(pi.email), '') IS NOT NULL
+               AND NULLIF(TRIM(a.house_block_lot), '') IS NOT NULL
+               AND NULLIF(TRIM(a.barangay), '') IS NOT NULL
+               AND NULLIF(TRIM(a.city_municipality), '') IS NOT NULL
+               AND NULLIF(TRIM(a.province), '') IS NOT NULL"
+        );
+        $stmt->execute([$employeeId]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    public static function needsPersonalDetailsSetup(): bool
+    {
+        if (!self::check() || !self::employeeId()) return false;
+        if (!array_key_exists('personal_details_complete', $_SESSION)) {
+            $_SESSION['personal_details_complete'] = self::hasRequiredPersonalDetails(self::employeeId());
+        }
+        return !$_SESSION['personal_details_complete'];
+    }
+
+    public static function completePersonalDetailsSetup(): void
+    {
+        $_SESSION['personal_details_complete'] = true;
+    }
+
     public static function logout(): void
+    {
+        if (self::check()) {
+            AuditLogger::log('logout', 'users', self::userId(), null, ['result' => 'success']);
+        }
+        self::clearSession();
+    }
+
+    private static function clearSession(): void
     {
         $_SESSION = [];
         if (ini_get('session.use_cookies')) {
             $params = session_get_cookie_params();
             setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
         }
-        session_destroy();
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
     }
 
     public static function csrfToken(): string

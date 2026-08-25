@@ -119,6 +119,7 @@ class PdsController extends Controller
         }
 
         $employee = $this->employeeModel->findWithDetails($employeeId);
+        $photo = $this->employeeModel->latestPhoto($employeeId);
         $data = [
             'employee' => $employee,
             'personalInfo' => $this->pdsModel->getSingleRow('personal_info', $employeeId),
@@ -128,10 +129,20 @@ class PdsController extends Controller
             'education' => $this->pdsModel->getRows('educational_background', $employeeId),
             'eligibility' => $this->pdsModel->getRows('civil_service_eligibility', $employeeId),
             'workExperience' => $this->pdsModel->getRows('work_experience', $employeeId),
+            'voluntaryWork' => $this->pdsModel->getRows('voluntary_work', $employeeId),
+            'learningDevelopment' => $this->pdsModel->getRows('learning_development', $employeeId),
+            'otherInfo' => $this->pdsModel->getRows('other_info', $employeeId),
+            'distinctions' => $this->pdsModel->getRows('non_academic_distinctions', $employeeId),
+            'memberships' => $this->pdsModel->getRows('memberships', $employeeId),
+            'questionnaire' => $this->pdsModel->getSingleRow('questionnaire', $employeeId),
             'characterReferences' => $this->pdsModel->getRows('character_references', $employeeId),
+            'photo' => $photo,
         ];
-
-        $this->view('employees', 'pds_print', $data);
+        $filename = 'CS_Form_212_' . preg_replace('/[^A-Za-z0-9_-]/', '_', (string) ($employee['employee_number'] ?? $employeeId)) . '.pdf';
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="' . $filename . '"');
+        echo (new PdsPdfGenerator())->render($data);
+        exit;
     }
 
     public function completionReport(): void

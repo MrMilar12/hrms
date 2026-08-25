@@ -8,7 +8,7 @@ $displayName = Auth::displayName();
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Welcome — HRMS</title>
-<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/glass.css">
+<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/glass.css?v=<?= rawurlencode(CSS_ASSET_VERSION) ?>">
 </head>
 <body class="auth-page">
 <div class="onboarding-card glass-strong">
@@ -48,8 +48,8 @@ $displayName = Auth::displayName();
     <?php endif; ?>
 
     <a class="btn btn-primary onboarding-cta" href="<?= BASE_URL ?>/pds?required=1">Get Started &rarr;</a>
-    <a class="onboarding-logout" href="<?= BASE_URL ?>/logout">Not you? Sign out</a>
+    <form method="post" action="<?= BASE_URL ?>/logout"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Auth::csrfToken()) ?>"><button class="onboarding-logout" type="submit">Not you? Sign out</button></form>
 </div>
-<script src="<?= BASE_URL ?>/assets/js/app.js" defer></script>
+<script src="<?= BASE_URL ?>/assets/js/app.js?v=<?= rawurlencode(JS_ASSET_VERSION) ?>" defer></script>
 </body>
 </html>

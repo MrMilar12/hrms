@@ -73,6 +73,11 @@ class AuthController extends Controller
 
     public function logout(): void
     {
+        if (!Auth::check() && !Auth::hasPending2fa()) {
+            $this->redirect('/login');
+            return;
+        }
+        $this->requireCsrf();
         Auth::logout();
         $this->redirect('/login');
     }

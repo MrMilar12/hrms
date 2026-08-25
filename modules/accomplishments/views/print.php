@@ -2,6 +2,7 @@
 /** @var array $accomplishment */
 /** @var array $attachments */
 /** @var array $reviews */
+/** @var string $qrDataUri */
 function printValue($value, string $fallback = '—'): string
 {
     return htmlspecialchars((string) ($value ?? $fallback));
@@ -10,6 +11,13 @@ function printValue($value, string $fallback = '—'): string
 $description = trim((string) ($accomplishment['description'] ?? ''));
 $paragraphs = $description === '' ? [] : preg_split('/\R{2,}/', $description);
 $statusClass = strtolower(str_replace(' ', '-', (string) $accomplishment['status']));
+$approvedReview = null;
+foreach ($reviews as $review) {
+    if (($review['status'] ?? '') === 'Approved') {
+        $approvedReview = $review;
+        break;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -44,10 +52,16 @@ $statusClass = strtolower(str_replace(' ', '-', (string) $accomplishment['status
     .empty { padding:13px 15px; border:1px dashed #c7cfdb; border-radius:9px; color:var(--muted); font-style:italic; }
     .review { display:grid; grid-template-columns:104px 1fr; gap:13px; padding:10px 0; border-bottom:1px solid var(--line); break-inside:avoid; } .review:last-child { border-bottom:0; }
     .review-date { color:var(--muted); font-size:8.5pt; } .review-title { margin:0 0 2px; font-weight:700; } .review-copy { margin:0; color:#4d586b; font-style:italic; }
-    .footer { display:flex; justify-content:space-between; margin-top:15mm; padding-top:6mm; border-top:1px solid var(--line); color:var(--muted); font-size:8pt; }
+    .signature-section { margin-top:13mm; break-inside:avoid; }
+    .signature-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14mm; }
+    .signature-block { text-align:center; }.signature-label { display:block; margin-bottom:2mm; color:var(--muted); font-size:8pt; font-weight:700; letter-spacing:.08em; text-align:left; text-transform:uppercase; }.signature-line { height:13mm; border-bottom:1px solid var(--ink); }.signature-name { display:block; margin-top:4px; font-size:10pt; font-weight:700; text-transform:uppercase; }.signature-position, .signature-number, .signature-date { display:block; color:var(--muted); font-size:7.5pt; line-height:1.35; }
+    .approval-verification { display:grid; grid-template-columns:minmax(0,1fr) 92px; align-items:center; gap:18px; margin-top:12mm; padding:14px 16px; border:1px solid #bfe5ce; border-radius:11px; background:#f1fbf5; break-inside:avoid; }
+    .approval-verification h2, .approval-verification p { margin:0; } .approval-verification h2 { color:#08733e; font-size:11pt; } .approval-verification p { margin-top:4px; color:#567063; font-size:8.5pt; line-height:1.45; }
+    .approval-qr { text-align:center; } .approval-qr img { display:block; width:88px; height:88px; padding:3px; border:1px solid #d8e5dd; border-radius:8px; background:#fff; } .approval-qr small { display:block; margin-top:3px; color:#687b70; font-size:6.5pt; font-weight:700; text-transform:uppercase; }
+    .footer { display:flex; justify-content:space-between; margin-top:10mm; padding-top:6mm; border-top:1px solid var(--line); color:var(--muted); font-size:8pt; }
     @page { size:A4; margin:0; }
     @media print { body { background:#fff; } .page { width:auto; min-height:0; margin:0; padding:17mm 18mm 15mm; box-shadow:none; } .print-action { display:none; } }
-    @media (max-width:700px) { .page { width:100%; margin:0; padding:28px 22px; } .facts, .evidence-grid { grid-template-columns:1fr; } .fact { border-right:0; border-bottom:1px solid var(--line); } .fact:last-child { border-bottom:0; } h1 { font-size:22pt; } }
+    @media (max-width:700px) { .page { width:100%; margin:0; padding:28px 22px; } .facts, .evidence-grid, .signature-grid { grid-template-columns:1fr; } .fact { border-right:0; border-bottom:1px solid var(--line); } .fact:last-child { border-bottom:0; } h1 { font-size:22pt; } .signature-grid { gap:8mm; }.approval-verification { grid-template-columns:1fr; text-align:center; } .approval-qr { justify-self:center; } }
 </style>
 </head>
 <body>
@@ -77,6 +91,26 @@ $statusClass = strtolower(str_replace(' ', '-', (string) $accomplishment['status
     <?php if ($reviews): ?><section class="section"><h2 class="section-heading">Review history</h2>
         <?php foreach ($reviews as $review): ?><div class="review"><div class="review-date"><?= printValue($review['reviewed_at']) ?></div><div><p class="review-title"><?= printValue($review['status']) ?> <span style="font-weight:400;color:var(--muted);">by <?= printValue($review['reviewer_username']) ?></span></p><?php if ($review['comments']): ?><p class="review-copy">“<?= nl2br(printValue($review['comments'], '')) ?>”</p><?php endif; ?></div></div><?php endforeach; ?>
     </section><?php endif; ?>
+    <section class="signature-section" aria-label="Report signatures">
+        <div class="signature-grid">
+            <div class="signature-block">
+                <span class="signature-label">Prepared by</span><div class="signature-line" aria-hidden="true"></div>
+                <span class="signature-name"><?= printValue($accomplishment['employee_name']) ?></span>
+                <span class="signature-position"><?= printValue($accomplishment['position_title'], 'Employee') ?><?= !empty($accomplishment['department_name']) ? ' - ' . printValue($accomplishment['department_name'], '') : '' ?></span>
+                <span class="signature-number">Employee No. <?= printValue($accomplishment['employee_number']) ?></span>
+            </div>
+            <div class="signature-block">
+                <span class="signature-label">Approved by</span><div class="signature-line" aria-hidden="true"></div>
+                <span class="signature-name"><?= printValue($approvedReview['reviewer_name'] ?? null, 'Approving Authority') ?></span>
+                <span class="signature-position"><?= printValue($approvedReview['reviewer_position'] ?? null, 'Approving Authority') ?><?= !empty($approvedReview['reviewer_department']) ? ' - ' . printValue($approvedReview['reviewer_department'], '') : '' ?></span>
+                <?php if (!empty($approvedReview['reviewed_at'])): ?><span class="signature-date">Approved <?= printValue(date('F j, Y', strtotime($approvedReview['reviewed_at']))) ?></span><?php endif; ?>
+            </div>
+        </div>
+    </section>
+    <section class="approval-verification">
+        <div><h2>&#10003; Approved and ready to print</h2><p>This QR contains the employee number, accomplishment title, completion date, and approved status. Internal system user IDs are not included.</p></div>
+        <div class="approval-qr"><img src="<?= htmlspecialchars($qrDataUri) ?>" alt="QR code for approved accomplishment"><small>Approved record</small></div>
+    </section>
     <footer class="footer"><span>HRMS · Accomplishment &amp; Evidence</span><span>Generated <?= date('F j, Y') ?></span></footer>
 </article>
 </body>

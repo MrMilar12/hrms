@@ -40,9 +40,9 @@ require MODULES_PATH . '/shared/views/header.php';
         </div>
         <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/pds/print/<?= $employeeId ?>" target="_blank">Print / Save PDF</a>
     </div>
-    <div style="display:flex; align-items:center; gap:0.75rem; margin-top:1rem;">
-        <div class="progress-bar" style="flex:1;"><div class="progress-bar-fill" data-target="<?= $completionPercent ?>"></div></div>
-        <strong><?= $completionPercent ?>% Complete</strong>
+    <div style="display:flex; align-items:center; gap:0.75rem; margin-top:1rem;" aria-live="polite">
+        <div class="progress-bar" style="flex:1;" role="progressbar" aria-label="PDS completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= $completionPercent ?>"><div id="pds-completion-bar" class="progress-bar-fill" data-target="<?= $completionPercent ?>"></div></div>
+        <strong id="pds-completion-text"><?= $completionPercent ?>% Complete</strong>
     </div>
 
     <div class="tabs" style="margin-top:1.25rem; margin-bottom:0;">
@@ -94,16 +94,27 @@ require MODULES_PATH . '/shared/views/header.php';
             <div class="form-group"><label>Citizenship</label><input name="citizenship" value="<?= pv($personalInfo, 'citizenship') ?>"></div>
         </div>
         <div class="form-row">
+            <div class="form-group"><label>Dual Citizenship Basis</label><select name="dual_citizenship_type"><option value="">Not applicable</option><?php foreach (['By Birth','By Naturalization'] as $type): ?><option value="<?= $type ?>" <?= ($personalInfo['dual_citizenship_type'] ?? '') === $type ? 'selected' : '' ?>><?= $type ?></option><?php endforeach; ?></select></div>
+            <div class="form-group"><label>Dual Citizenship Country</label><input name="dual_citizenship_country" value="<?= pv($personalInfo, 'dual_citizenship_country') ?>"></div>
+        </div>
+        <div class="form-row">
             <div class="form-group"><label>GSIS No.</label><input name="gsis_no" value="<?= pv($personalInfo, 'gsis_no') ?>"></div>
             <div class="form-group"><label>Pag-IBIG No.</label><input name="pagibig_no" value="<?= pv($personalInfo, 'pagibig_no') ?>"></div>
             <div class="form-group"><label>PhilHealth No.</label><input name="philhealth_no" value="<?= pv($personalInfo, 'philhealth_no') ?>"></div>
             <div class="form-group"><label>SSS No.</label><input name="sss_no" value="<?= pv($personalInfo, 'sss_no') ?>"></div>
+            <div class="form-group"><label>PhilSys Card Number (PCN)</label><input name="philsys_card_no" value="<?= pv($personalInfo, 'philsys_card_no') ?>"></div>
             <div class="form-group"><label>TIN No.</label><input name="tin_no" value="<?= pv($personalInfo, 'tin_no') ?>"></div>
         </div>
         <div class="form-row">
             <div class="form-group"><label>Telephone No.</label><input name="telephone_no" value="<?= pv($personalInfo, 'telephone_no') ?>"></div>
             <div class="form-group"><label>Mobile No.</label><input name="mobile_no" value="<?= pv($personalInfo, 'mobile_no') ?>"></div>
             <div class="form-group"><label>Email</label><input type="email" name="email" value="<?= pv($personalInfo, 'email') ?>"></div>
+        </div>
+        <h3>Government Issued ID</h3>
+        <div class="form-row">
+            <div class="form-group"><label>ID Type</label><input name="government_issued_id" value="<?= pv($personalInfo, 'government_issued_id') ?>" placeholder="Passport, GSIS, SSS, PRC, Driver's License"></div>
+            <div class="form-group"><label>ID / License / Passport Number</label><input name="government_id_number" value="<?= pv($personalInfo, 'government_id_number') ?>"></div>
+            <div class="form-group"><label>Date / Place of Issuance</label><input name="government_id_issuance" value="<?= pv($personalInfo, 'government_id_issuance') ?>"></div>
         </div>
         <button class="btn btn-primary" type="submit">Save Section</button>
     </form>
@@ -149,6 +160,7 @@ require MODULES_PATH . '/shared/views/header.php';
             <div class="form-group"><label>Surname</label><input name="spouse_surname" value="<?= pv($familyBackground, 'spouse_surname') ?>"></div>
             <div class="form-group"><label>First Name</label><input name="spouse_first_name" value="<?= pv($familyBackground, 'spouse_first_name') ?>"></div>
             <div class="form-group"><label>Middle Name</label><input name="spouse_middle_name" value="<?= pv($familyBackground, 'spouse_middle_name') ?>"></div>
+            <div class="form-group"><label>Name Extension</label><input name="spouse_name_extension" value="<?= pv($familyBackground, 'spouse_name_extension') ?>"></div>
         </div>
         <div class="form-row">
             <div class="form-group"><label>Occupation</label><input name="spouse_occupation" value="<?= pv($familyBackground, 'spouse_occupation') ?>"></div>
@@ -162,6 +174,7 @@ require MODULES_PATH . '/shared/views/header.php';
             <div class="form-group"><label>Surname</label><input name="father_surname" value="<?= pv($familyBackground, 'father_surname') ?>"></div>
             <div class="form-group"><label>First Name</label><input name="father_first_name" value="<?= pv($familyBackground, 'father_first_name') ?>"></div>
             <div class="form-group"><label>Middle Name</label><input name="father_middle_name" value="<?= pv($familyBackground, 'father_middle_name') ?>"></div>
+            <div class="form-group"><label>Name Extension</label><input name="father_name_extension" value="<?= pv($familyBackground, 'father_name_extension') ?>"></div>
         </div>
 
         <h3>Mother (Maiden Name)</h3>
@@ -280,6 +293,10 @@ require MODULES_PATH . '/shared/views/header.php';
                 </div>
             </div>
         <?php endforeach; ?>
+        <div class="form-row">
+            <div class="form-group"><label>35b. Date Filed</label><input type="date" name="q35b_date_filed" value="<?= pv($questionnaire, 'q35b_date_filed') ?>"></div>
+            <div class="form-group"><label>35b. Status of Case/s</label><input name="q35b_status_cases" value="<?= pv($questionnaire, 'q35b_status_cases') ?>"></div>
+        </div>
         <button class="btn btn-primary" type="submit">Save Questionnaire</button>
     </form>
 </div>
@@ -385,7 +402,10 @@ function saveRepeatingSection(section, employeeId) {
     const formData = new FormData();
     formData.append('rows', JSON.stringify(rows));
     HRIS.postForm(`${window.BASE_URL}/pds/save-section/${section}?employee_id=${employeeId}`, formData)
-        .then(result => HRIS.flash(result.message || (result.success ? 'Saved.' : 'Save failed.'), result.success ? 'success' : 'error'));
+        .then(result => {
+            if (result.success) HRIS.updatePdsCompletion(result.completionPercent);
+            HRIS.flash(result.message || (result.success ? 'Saved.' : 'Save failed.'), result.success ? 'success' : 'error');
+        });
 }
 
 Object.keys(REPEATING_INITIAL_DATA).forEach(section => {

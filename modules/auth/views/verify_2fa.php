@@ -7,7 +7,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Two-Factor Verification &mdash; HRMS</title>
-<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/glass.css">
+<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/glass.css?v=<?= rawurlencode(CSS_ASSET_VERSION) ?>">
 </head>
 <body class="auth-page">
 <div class="onboarding-card glass-strong">
@@ -29,7 +29,7 @@
         <button type="submit" class="btn btn-primary onboarding-cta">Verify</button>
     </form>
 
-    <a class="onboarding-logout" href="<?= BASE_URL ?>/logout">Cancel and sign out</a>
+    <form method="post" action="<?= BASE_URL ?>/logout"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Auth::csrfToken()) ?>"><button class="onboarding-logout" type="submit">Cancel and sign out</button></form>
 </div>
 </body>
 </html>

@@ -6,6 +6,7 @@
 /** @var array $departments */
 /** @var array $employees */
 /** @var array $notSubmitted */
+/** @var string|null $submissionPeriod */
 /** @var string $filterDepartment */
 /** @var string $filterEmployee */
 /** @var string $filterSearch */
@@ -74,10 +75,11 @@ function qs(array $overrides = []) {
     <?php endif; ?>
 </div>
 
-<?php if ($canReviewAll && $notSubmitted): ?>
+<?php if ($canReviewAll && $submissionPeriod !== null): ?>
 <div class="glass-card">
-    <h3 style="margin-top:0; display:flex; align-items:center; gap:0.5rem;">&#9888; Personnel Without Submissions</h3>
-    <p style="margin:0 0 0.85rem; color:var(--text-muted); font-size:0.85rem;">These employees have not submitted any accomplishment yet.</p>
+    <h3 style="margin-top:0; display:flex; align-items:center; gap:0.5rem;">&#9888; No Accomplishment Submitted</h3>
+    <p style="margin:0 0 0.85rem; color:var(--text-muted); font-size:0.85rem;">Submission check for <?= htmlspecialchars($submissionPeriod) ?>. Drafts are not considered submitted.</p>
+    <?php if ($notSubmitted): ?>
     <div style="display:flex; flex-wrap:wrap; gap:0.6rem;">
         <?php foreach ($notSubmitted as $n): ?>
             <div class="glass-light" style="padding:0.6rem 0.9rem; border-radius:var(--radius-small); font-size:0.82rem;">
@@ -86,6 +88,9 @@ function qs(array $overrides = []) {
             </div>
         <?php endforeach; ?>
     </div>
+    <?php else: ?>
+        <div class="alert alert-success" style="display:block; margin:0;">All personnel submitted an accomplishment for this period.</div>
+    <?php endif; ?>
 </div>
 <?php endif; ?>
 

@@ -6,6 +6,8 @@
 /** @var array $history */
 /** @var array $statuses */
 /** @var bool $canUpdateStatus */
+/** @var int|null $currentEmployeeId */
+/** @var bool $canManageAssignments */
 require MODULES_PATH . '/shared/views/header.php';
 $badgeClass = 'badge-' . strtolower(str_replace(' ', '-', $task['status']));
 ?>
@@ -18,17 +20,30 @@ $badgeClass = 'badge-' . strtolower(str_replace(' ', '-', $task['status']));
             <p style="font-size:0.85rem; color:var(--text-muted);"><strong>Assignees:</strong> <?= htmlspecialchars(implode(', ', array_column($assignees, 'employee_number')) ?: '—') ?></p>
         </div>
         <div style="text-align:right;">
+            <small style="display:block;color:var(--text-muted);margin-bottom:0.3rem;">Overall status</small>
             <span class="badge <?= $badgeClass ?>" id="current-status-badge"><?= htmlspecialchars($task['status']) ?></span>
-            <?php if ($canUpdateStatus): ?>
-                <div style="margin-top:0.5rem;">
-                    <select class="task-status-select" data-task-id="<?= (int) $task['id'] ?>">
-                        <?php foreach ($statuses as $s): ?>
-                            <option value="<?= $s ?>" <?= $s === $task['status'] ? 'selected' : '' ?>><?= $s ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-            <?php endif; ?>
         </div>
+    </div>
+</div>
+
+<div class="glass-card">
+    <div class="task-assignment-heading"><div><span class="launcher-eyebrow">Individual progress</span><h3>Employee submissions</h3></div><span><?= count($assignees) ?> assignee<?= count($assignees) === 1 ? '' : 's' ?></span></div>
+    <p class="task-assignment-note">Each employee must update and submit this task separately. One employee's submission does not submit it for the others.</p>
+    <div class="task-assignment-grid">
+        <?php foreach ($assignees as $assignee): ?>
+            <?php $canChangeThis = $canUpdateStatus && ($canManageAssignments || (int) $assignee['id'] === (int) $currentEmployeeId); ?>
+            <article class="task-assignee-card">
+                <span class="assignee-avatar"><?= htmlspecialchars(strtoupper(substr($assignee['employee_name'], 0, 1))) ?></span>
+                <div class="task-assignee-copy"><strong><?= htmlspecialchars($assignee['employee_name']) ?></strong><small><?= htmlspecialchars($assignee['employee_number']) ?><?= $assignee['submitted_at'] ? ' · Submitted ' . htmlspecialchars($assignee['submitted_at']) : '' ?></small></div>
+                <?php if ($canChangeThis): ?>
+                    <select class="task-status-select" data-task-id="<?= (int) $task['id'] ?>" data-employee-id="<?= (int) $assignee['id'] ?>" aria-label="Status for <?= htmlspecialchars($assignee['employee_name']) ?>">
+                        <?php foreach ($statuses as $status): ?><option value="<?= $status ?>" <?= $status === $assignee['status'] ? 'selected' : '' ?>><?= $status ?></option><?php endforeach; ?>
+                    </select>
+                <?php else: ?>
+                    <span class="badge badge-<?= strtolower(str_replace(' ', '-', $assignee['status'])) ?>"><?= htmlspecialchars($assignee['status']) ?></span>
+                <?php endif; ?>
+            </article>
+        <?php endforeach; ?>
     </div>
 </div>
 
@@ -75,10 +90,11 @@ $badgeClass = 'badge-' . strtolower(str_replace(' ', '-', $task['status']));
 <div class="glass-card">
     <h3 style="margin-top:0;">Status History</h3>
     <table>
-        <thead><tr><th>From</th><th>To</th><th>Changed By</th><th>Date</th></tr></thead>
+        <thead><tr><th>Employee submission</th><th>From</th><th>To</th><th>Changed By</th><th>Date</th></tr></thead>
         <tbody>
         <?php foreach ($history as $h): ?>
             <tr>
+                <td><?= htmlspecialchars($h['employee_name'] ?? 'Legacy task update') ?></td>
                 <td><?= htmlspecialchars($h['old_status'] ?? '—') ?></td>
                 <td><?= htmlspecialchars($h['new_status']) ?></td>
                 <td><?= htmlspecialchars($h['changed_by_username'] ?? '—') ?></td>

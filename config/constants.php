@@ -8,6 +8,12 @@ define('MODULES_PATH', BASE_PATH . '/modules');
 define('UPLOADS_PATH', BASE_PATH . '/uploads');
 define('STORAGE_PATH', BASE_PATH . '/storage');
 
+// Cache-bust static assets whenever their contents change. Apache keeps these
+// files for a week in the browser cache, so an unversioned URL can leave new
+// templates paired with stale CSS or JavaScript.
+define('CSS_ASSET_VERSION', (string) (filemtime(BASE_PATH . '/public/assets/css/glass.css') ?: 1));
+define('JS_ASSET_VERSION', (string) (filemtime(BASE_PATH . '/public/assets/js/app.js') ?: 1));
+
 // Base URL of the app (adjust if deployed in a sub-folder under htdocs).
 define('BASE_URL', '/hrms/public');
 
@@ -17,11 +23,13 @@ define('ALLOWED_IMAGE_EXTENSIONS', ['jpg', 'jpeg', 'png', 'webp']);
 define('ALLOWED_IMAGE_MIME_TYPES', ['image/jpeg', 'image/png', 'image/webp']);
 define('IMAGE_MAX_DIMENSION', 1600);
 define('IMAGE_THUMB_DIMENSION', 300);
+define('IMAGE_MAX_PIXELS', 25000000); // Reject decompression-bomb images before GD decodes them.
 
 // Roles (seeded in database, mirrored here for quick reference in code)
 define('ROLE_ADMIN', 'Admin');
 define('ROLE_HR', 'HR');
 define('ROLE_SUPERVISOR', 'Supervisor');
+define('ROLE_UNIT_HEAD', 'Unit Head');
 define('ROLE_EMPLOYEE', 'Employee');
 
 // Session

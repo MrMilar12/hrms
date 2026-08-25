@@ -3,6 +3,10 @@
 
 require_once __DIR__ . '/../config/constants.php';
 
+if (is_file(BASE_PATH . '/vendor/autoload.php')) {
+    require_once BASE_PATH . '/vendor/autoload.php';
+}
+
 spl_autoload_register(function (string $class): void {
     $paths = [
         CORE_PATH . "/{$class}.php",
@@ -39,6 +43,14 @@ if ($appConfig['debug']) {
 
 Auth::start();
 
+// Authenticated and dynamic responses must never be stored in shared browser/proxy caches.
+header('Cache-Control: private, no-store, max-age=0');
+header('Pragma: no-cache');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+
 $router = new Router();
 
 // ---- Auth ----
@@ -46,7 +58,7 @@ $router->get('/login', fn() => (new AuthController())->showLogin());
 $router->post('/login', fn() => (new AuthController())->login());
 $router->get('/login/verify-2fa', fn() => (new AuthController())->showTwoFactor());
 $router->post('/login/verify-2fa', fn() => (new AuthController())->verifyTwoFactor());
-$router->get('/logout', fn() => (new AuthController())->logout());
+$router->post('/logout', fn() => (new AuthController())->logout());
 
 // ---- Dashboard ----
 $router->get('/', fn() => (new DashboardController())->index());
@@ -54,8 +66,18 @@ $router->get('/dashboard', fn() => (new DashboardController())->index());
 
 // ---- Onboarding ----
 $router->get('/onboarding', fn() => (new OnboardingController())->index());
+$router->get('/personnel-setup', fn() => (new OnboardingController())->personnelSetup());
+$router->post('/personnel-setup', fn() => (new OnboardingController())->savePersonnelSetup());
+$router->get('/personal-details-setup', fn() => (new OnboardingController())->personalDetailsSetup());
+$router->post('/personal-details-setup', fn() => (new OnboardingController())->savePersonalDetailsSetup());
 
 // ---- Employees (201 file) ----
+$router->get('/profile', fn() => (new ProfileController())->show());
+$router->post('/profile/update', fn() => (new ProfileController())->update());
+$router->post('/profile/photo', fn() => (new ProfileController())->uploadPhoto());
+$router->get('/profile/security', fn() => (new ProfileController())->security());
+$router->post('/profile/security/2fa/enable', fn() => (new ProfileController())->enableTwoFactor());
+$router->post('/profile/security/2fa/disable', fn() => (new ProfileController())->disableTwoFactor());
 $router->get('/employees', fn() => (new EmployeeController())->index());
 $router->get('/employees/create', fn() => (new EmployeeController())->create());
 $router->post('/employees/store', fn() => (new EmployeeController())->store());
@@ -70,6 +92,7 @@ $router->get('/reports/pds-completion', fn() => (new PdsController())->completio
 
 // ---- Tasks ----
 $router->get('/tasks', fn() => (new TaskController())->index());
+$router->get('/tasks/calendar', fn() => (new TaskController())->calendar());
 $router->get('/tasks/create', fn() => (new TaskController())->create());
 $router->post('/tasks/store', fn() => (new TaskController())->store());
 $router->get('/tasks/{id}', fn($id) => (new TaskController())->show($id));
@@ -81,12 +104,15 @@ $router->post('/tasks/upload-attachment/{id}', fn($id) => (new TaskController())
 $router->get('/photo/{id}', fn($id) => (new FileController())->photo($id));
 $router->get('/files/task-attachment/{id}', fn($id) => (new FileController())->taskAttachment($id));
 $router->get('/files/accomplishment-attachment/{id}', fn($id) => (new FileController())->accomplishmentAttachment($id));
+$router->get('/search', fn() => (new SearchController())->index());
+$router->post('/notifications/read', fn() => (new NotificationController())->markRead());
 
 // ---- Accomplishments & Evidence ----
 $router->get('/accomplishments', fn() => (new AccomplishmentController())->index());
 $router->get('/accomplishments/create', fn() => (new AccomplishmentController())->create());
 $router->get('/accomplishments/gallery', fn() => (new AccomplishmentController())->gallery());
 $router->post('/accomplishments/store', fn() => (new AccomplishmentController())->store());
+$router->get('/accomplishments/{id}/edit', fn($id) => (new AccomplishmentController())->edit($id));
 $router->get('/accomplishments/{id}', fn($id) => (new AccomplishmentController())->show($id));
 $router->get('/accomplishments/{id}/print', fn($id) => (new AccomplishmentController())->printView($id));
 $router->post('/accomplishments/{id}/save-draft', fn($id) => (new AccomplishmentController())->saveDraft($id));
@@ -96,8 +122,14 @@ $router->post('/accomplishments/{id}/upload-attachment', fn($id) => (new Accompl
 $router->post('/accomplishments/{aid}/attachments/{atid}/delete', fn($aid, $atid) => (new AccomplishmentController())->deleteAttachment($aid, $atid));
 
 // ---- Administration ----
+$router->get('/admin/dashboard', fn() => (new AdminController())->dashboard());
+$router->get('/admin/activity', fn() => (new AdminController())->activity());
 $router->get('/admin/users', fn() => (new AdminController())->users());
 $router->post('/admin/users/{id}/status', fn($id) => (new AdminController())->updateUserStatus($id));
+$router->post('/admin/users/{id}/update', fn($id) => (new AdminController())->updateUser($id));
+$router->post('/admin/users/{id}/reset-password', fn($id) => (new AdminController())->resetUserPassword($id));
+$router->post('/admin/users/{id}/reset-2fa', fn($id) => (new AdminController())->resetUserTwoFactor($id));
+$router->post('/admin/users/{id}/delete', fn($id) => (new AdminController())->deleteUser($id));
 $router->get('/admin/departments', fn() => (new AdminController())->departments());
 $router->post('/admin/departments/store', fn() => (new AdminController())->storeDepartment());
 $router->post('/admin/departments/{id}/delete', fn($id) => (new AdminController())->deleteDepartment($id));

@@ -34,6 +34,25 @@ class Router
             $path = $path === '' ? '/' : $path;
         }
 
+        $setupRoutes = ['/personnel-setup', '/logout'];
+        if (Auth::check() && Auth::needsPersonnelSetup() && !in_array($path, $setupRoutes, true)) {
+            header('Location: ' . BASE_URL . '/personnel-setup');
+            exit;
+        }
+
+        $personalDetailsRoutes = ['/personal-details-setup', '/logout'];
+        if (Auth::check() && !Auth::needsPersonnelSetup() && Auth::needsPersonalDetailsSetup() && !in_array($path, $personalDetailsRoutes, true)) {
+            header('Location: ' . BASE_URL . '/personal-details-setup');
+            exit;
+        }
+
+        if (!$this->withinRateLimit($method, $path)) {
+            http_response_code(429);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Too many requests. Please wait and try again.']);
+            return;
+        }
+
         $handlers = $this->routes[$method] ?? [];
 
         if (isset($handlers[$path])) {
@@ -53,5 +72,30 @@ class Router
 
         http_response_code(404);
         echo '404 Not Found';
+    }
+
+    private function withinRateLimit(string $method, string $path): bool
+    {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $user = Auth::userId() ? 'user:' . Auth::userId() : 'ip:' . $ip;
+
+        if ($method === 'POST' && $path === '/login') {
+            $username = strtolower(trim((string) ($_POST['username'] ?? 'unknown')));
+            return RateLimiter::allow('login:ip:' . $ip, 20, 900)
+                && RateLimiter::allow('login:account:' . hash('sha256', $username), 5, 900);
+        }
+        if ($method === 'POST' && $path === '/login/verify-2fa') {
+            return RateLimiter::allow('2fa:' . $ip . ':' . ($_SESSION['pending_2fa_user_id'] ?? 'unknown'), 8, 300);
+        }
+        if ($method === 'GET' && $path === '/search') {
+            return RateLimiter::allow('search:' . $user, 120, 60);
+        }
+        if ($method === 'POST' && (str_contains($path, '/upload-attachment') || $path === '/profile/photo' || preg_match('#^/employees/[^/]+/photo$#', $path))) {
+            return RateLimiter::allow('upload:' . $user, 20, 600);
+        }
+        if ($method === 'POST') {
+            return RateLimiter::allow('write:' . $user, 180, 60);
+        }
+        return true;
     }
 }

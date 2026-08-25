@@ -7,7 +7,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HRMS &mdash; Login</title>
-<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/glass.css">
+<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/glass.css?v=<?= rawurlencode(CSS_ASSET_VERSION) ?>">
 </head>
 <body class="auth-page">
 <div class="auth-shell"> 

@@ -30,7 +30,7 @@ require MODULES_PATH . '/shared/views/header.php';
             <?php endif; ?>
             <div class="gallery-tile-actions">
                 <a href="<?= BASE_URL ?>/accomplishments/<?= (int) $item['id'] ?>" title="View">&#128065;</a>
-                <a href="<?= BASE_URL ?>/accomplishments/<?= (int) $item['id'] ?>/print" target="_blank" title="Download / Print">&#11015;</a>
+                <?php if ($item['status'] === 'Approved'): ?><a href="<?= BASE_URL ?>/accomplishments/<?= (int) $item['id'] ?>/print" target="_blank" title="Download / Print">&#11015;</a><?php endif; ?>
             </div>
             <div class="gallery-tile-overlay">
                 <strong><?= htmlspecialchars($item['title']) ?></strong>

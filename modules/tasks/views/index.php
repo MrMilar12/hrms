@@ -12,9 +12,12 @@ $priorityClass = fn($p) => 'priority-' . strtolower($p);
 ?>
 <div class="glass-card" style="display:flex; justify-content:space-between; align-items:center;">
     <h2 style="margin:0;">Tasks</h2>
-    <?php if ($canCreate): ?>
+    <div style="display:flex;gap:0.55rem;">
+        <a class="btn btn-secondary" href="<?= BASE_URL ?>/tasks/calendar">&#128197; Calendar</a>
+        <?php if ($canCreate): ?>
         <a class="btn btn-primary" href="<?= BASE_URL ?>/tasks/create">+ Create Task</a>
-    <?php endif; ?>
+        <?php endif; ?>
+    </div>
 </div>
 
 <div class="kanban-board">

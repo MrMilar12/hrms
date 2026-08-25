@@ -15,16 +15,20 @@ class EmployeeController extends Controller
     public function index(): void
     {
         Auth::requirePermission('employee.view');
-        $employees = $this->employeeModel->listWithDetails();
-        foreach ($employees as &$emp) {
-            $emp['pds_percent'] = $this->pdsModel->completionPercent((int) $emp['id']);
-        }
-        unset($emp);
+        $perPage = 50;
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $total = $this->employeeModel->count();
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        $page = min($page, $totalPages);
+        $employees = $this->employeeModel->listWithDetails($perPage, ($page - 1) * $perPage);
 
         $this->view('employees', 'index', [
             'pageTitle' => 'Employees (201 File)',
             'employees' => $employees,
             'canManage' => Auth::can('employee.manage'),
+            'page' => $page,
+            'totalPages' => $totalPages,
+            'total' => $total,
         ]);
     }
 
@@ -134,12 +138,30 @@ class EmployeeController extends Controller
         }
         $photo = $this->employeeModel->latestPhoto((int) $id);
         $pdsPercent = $this->pdsModel->completionPercent((int) $id);
+        $snapshot = $this->employeeModel->profileSnapshot((int) $id);
+        $relatedSummary = $this->employeeModel->relatedSummary((int) $id);
+        $recentRecords = $this->employeeModel->recentRelatedRecords((int) $id);
+
+        $educationStmt = Database::getInstance()->prepare(
+            "SELECT level, school_name, degree_course FROM pds_educational_background
+             WHERE employee_id = ? ORDER BY FIELD(level, 'Graduate Studies','College','Vocational','Secondary','Elementary') LIMIT 1"
+        );
+        $educationStmt->execute([(int) $id]);
+        $eligibilityStmt = Database::getInstance()->prepare(
+            'SELECT eligibility_name FROM pds_civil_service_eligibility WHERE employee_id = ? ORDER BY id LIMIT 3'
+        );
+        $eligibilityStmt->execute([(int) $id]);
 
         $this->view('employees', 'show', [
             'pageTitle' => 'Employee Profile',
             'employee' => $employee,
             'photo' => $photo,
             'pdsPercent' => $pdsPercent,
+            'snapshot' => $snapshot,
+            'relatedSummary' => $relatedSummary,
+            'recentRecords' => $recentRecords,
+            'highestEducation' => $educationStmt->fetch() ?: null,
+            'eligibilities' => $eligibilityStmt->fetchAll(),
         ]);
     }
 
