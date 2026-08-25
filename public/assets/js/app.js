@@ -97,8 +97,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 secondary: button.dataset.secondary,
             };
         });
+        const validColor = value => /^#[0-9a-f]{6}$/i.test(String(value || ''));
         const readSettings = () => {
-            try { return { ...defaults, ...JSON.parse(localStorage.getItem(storageKey) || '{}') }; }
+            try {
+                const saved = { ...defaults, ...JSON.parse(localStorage.getItem(storageKey) || '{}') };
+                return {
+                    mode: ['system', 'light', 'dark'].includes(saved.mode) ? saved.mode : defaults.mode,
+                    palette: (palettes[saved.palette] || saved.palette === 'custom') ? saved.palette : defaults.palette,
+                    primary: validColor(saved.primary) ? saved.primary : defaults.primary,
+                    secondary: validColor(saved.secondary) ? saved.secondary : defaults.secondary,
+                };
+            }
             catch (_) { return { ...defaults }; }
         };
         let settings = readSettings();
@@ -125,13 +134,23 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             primaryInput.value = settings.primary;
             secondaryInput.value = settings.secondary;
+            appearanceRoot.dataset.activeMode = settings.mode;
+            appearanceRoot.dataset.activePalette = settings.palette;
             if (announce && status) {
                 status.textContent = 'Saved';
                 status.classList.add('is-saved');
                 window.setTimeout(() => { status.textContent = 'Changes save automatically'; status.classList.remove('is-saved'); }, 1600);
             }
         };
-        const save = () => { localStorage.setItem(storageKey, JSON.stringify(settings)); applySettings(true); };
+        const save = () => {
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(settings));
+                applySettings(true);
+            } catch (_) {
+                applySettings(false);
+                if (status) { status.textContent = 'Could not save on this browser'; status.classList.add('is-error'); }
+            }
+        };
 
         appearanceRoot.querySelectorAll('[data-theme-choice]').forEach(button => button.addEventListener('click', () => {
             settings.mode = button.dataset.themeChoice;
@@ -153,10 +172,14 @@ document.addEventListener('DOMContentLoaded', () => {
             save();
         });
         [primaryInput, secondaryInput].forEach(input => input.addEventListener('input', () => {
-            document.documentElement.style.setProperty(input === primaryInput ? '--accent-blue' : '--accent-violet', input.value);
+            const property = input === primaryInput ? '--accent-blue' : '--accent-violet';
+            document.documentElement.style.setProperty(property, input.value);
+            if (input === primaryInput) document.documentElement.style.setProperty('--accent-primary', input.value);
         }));
         appearanceRoot.querySelector('[data-reset-appearance]').addEventListener('click', () => {
             settings = { ...defaults };
+            advancedToggle.setAttribute('aria-expanded', 'false');
+            advancedPanel.hidden = true;
             save();
         });
         systemTheme.addEventListener?.('change', () => { if (settings.mode === 'system') applySettings(); });

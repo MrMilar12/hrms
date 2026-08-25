@@ -10,7 +10,7 @@
         <span class="settings-saved" data-settings-status aria-live="polite">Changes save automatically</span>
     </section>
 
-    <section class="glass-card settings-section">
+    <section class="glass-card settings-section settings-display-section">
         <div class="settings-section-heading">
             <div><h2>Display mode</h2><p>Use your device setting automatically, or keep HRMS in light or dark mode.</p></div>
         </div>
@@ -27,7 +27,7 @@
         </div>
     </section>
 
-    <section class="glass-card settings-section">
+    <section class="glass-card settings-section settings-color-section">
         <div class="settings-section-heading">
             <div><h2>Color style</h2><p>Pick an accent palette for buttons, highlights, icons, and ambient color.</p></div>
         </div>

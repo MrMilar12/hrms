@@ -106,12 +106,10 @@ if (Auth::check()) {
         <header class="glass-header glass-strong">
             <div class="header-left">
                 <?php if (!$isDashboard): ?>
-                    <button class="menu-toggle app-launcher" id="menu-toggle" aria-label="Open applications" aria-expanded="<?= $openAppDrawer ? 'true' : 'false' ?>"><span class="app-launcher-icon">&#9638;</span><span>Apps</span></button>
+                    <button class="menu-toggle app-launcher" id="menu-toggle" aria-label="Open applications" aria-expanded="<?= $openAppDrawer ? 'true' : 'false' ?>"><span class="app-launcher-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>Apps</span></button>
+                    <button class="app-back-button" id="app-back-button" type="button" aria-label="Go back"><span aria-hidden="true">&larr;</span><b>Back</b></button>
                 <?php endif; ?>
                 <div class="header-context"><span class="header-workspace"><span class="header-brand-dot"></span> HRMS Workspace</span><div class="header-title"><?= htmlspecialchars($pageTitle) ?></div></div>
-                <?php if (!$isDashboard): ?>
-                    <button class="app-back-button" id="app-back-button" type="button" aria-label="Go back"><span>&larr;</span> Back</button>
-                <?php endif; ?>
             </div>
 
             <div class="header-search-wrap">
@@ -124,10 +122,10 @@ if (Auth::check()) {
             </div>
 
             <div class="header-actions">
-                <a class="icon-button header-settings-link <?= $isActive('/settings') ?>" href="<?= BASE_URL ?>/settings" aria-label="Appearance settings" title="Appearance settings">&#9881;</a>
+                <a class="icon-button header-settings-link <?= $isActive('/settings') ?>" href="<?= BASE_URL ?>/settings" aria-label="Appearance settings" title="Appearance settings"><span aria-hidden="true">&#9881;</span></a>
                 <div class="notification-control">
                     <button class="icon-button <?= $unreadNotificationCount ? 'pulse' : '' ?>" id="notif-toggle" aria-label="Notifications<?= $unreadNotificationCount ? ' (' . $unreadNotificationCount . ' unread)' : '' ?>" data-unread="<?= $unreadNotificationCount ?>">
-                        &#128276;
+                        <span aria-hidden="true">&#128276;</span>
                         <?php if ($unreadNotificationCount): ?><span class="dot-badge"><b><?= $unreadNotificationCount > 9 ? '9+' : $unreadNotificationCount ?></b></span><?php endif; ?>
                     </button>
                     <div class="glass-dropdown glass-strong" id="notif-dropdown" role="region" aria-label="Unread notifications">
@@ -150,7 +148,7 @@ if (Auth::check()) {
                     <span class="avatar-sm"><?= htmlspecialchars($initials) ?></span>
                     <span class="user-chip-copy"><strong><?= htmlspecialchars($displayName) ?></strong><small><?= htmlspecialchars(Auth::roleName() ?? '') ?></small></span>
                 </a>
-                <form method="post" action="<?= BASE_URL ?>/logout"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Auth::csrfToken()) ?>"><button type="submit" class="logout-control" aria-label="Log out" title="Log out">&#10230;<span>Logout</span></button></form>
+                <form class="header-logout-form" method="post" action="<?= BASE_URL ?>/logout"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Auth::csrfToken()) ?>"><button type="submit" class="logout-control" aria-label="Log out" title="Log out"><span aria-hidden="true">&#10230;</span><b>Logout</b></button></form>
             </div>
         </header>
         <main class="content">

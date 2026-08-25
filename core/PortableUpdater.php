@@ -4,9 +4,9 @@ class PortableUpdater
 {
     private const BRANCH = 'main';
     private const PRESERVE = [
-        'config/app.php', '.env', 'uploads/', '.git/',
+        'config/app.php', '.env', 'uploads/', 'output/', 'tmp/', '.git/',
         'storage/logs/', 'storage/cache/', 'storage/backups/',
-        'storage/app.key', 'storage/installed.lock',
+        'storage/app.key', 'storage/installed.lock', 'storage/.htaccess', 'storage/.gitkeep',
     ];
 
     public static function status(): array
@@ -81,11 +81,15 @@ class PortableUpdater
             $source = self::extractAndLocateRoot($archive, $work . '/source');
             $newVersion = $status['new_version'];
 
+            self::writeProgress(48, 'Checking every installation destination...');
+            self::assertInstallable($source);
+
             $backup = STORAGE_PATH . '/backups/' . date('Ymd_His') . '_before_v' . $newVersion . '.zip';
             self::writeProgress(55, 'Backing up the current application...');
             self::setMaintenance(true);
+            $installed = self::backupFiles($source, $backup);
             self::writeProgress(68, 'Installing the new application files...');
-            $installed = self::installArchive($source, $backup);
+            self::installArchive($source);
             file_put_contents(BASE_PATH . '/VERSION', $newVersion . PHP_EOL, LOCK_EX);
             self::writeProgress(82, 'Applying database migrations...');
             $migrations = self::runNewMigrations();
@@ -220,22 +224,40 @@ class PortableUpdater
         return $roots[0];
     }
 
-    private static function installArchive(string $source, string $backupPath): array
+    private static function backupFiles(string $source, string $backupPath): array
     {
         $backup = new ZipArchive(); if ($backup->open($backupPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) throw new RuntimeException('Unable to create file backup.');
         $installed = [];
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($source, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST);
         foreach ($iterator as $item) {
             $relative = str_replace('\\', '/', substr($item->getPathname(), strlen($source) + 1));
-            if (self::preserved($relative)) continue;
+            if ($item->isDir() || self::preserved($relative) || self::legacyUpdater($relative, $item->getPathname())) continue;
             $target = BASE_PATH . '/' . $relative;
-            if ($item->isDir()) { if (!is_dir($target)) mkdir($target, 0755, true); continue; }
             if (is_file($target)) $backup->addFile($target, $relative); else $installed[] = $relative;
-            $directory = dirname($target); if (!is_dir($directory)) mkdir($directory, 0755, true);
-            $temporary = $target . '.update-' . bin2hex(random_bytes(3));
-            if (!copy($item->getPathname(), $temporary) || !rename($temporary, $target)) throw new RuntimeException("Unable to install {$relative}.");
         }
         $backup->addFromString('.new-files.json', json_encode($installed)); $backup->close(); return $installed;
+    }
+
+    private static function installArchive(string $source): void
+    {
+        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($source, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST);
+        foreach ($iterator as $item) {
+            $relative = str_replace('\\', '/', substr($item->getPathname(), strlen($source) + 1));
+            if (self::preserved($relative) || self::legacyUpdater($relative, $item->getPathname())) continue;
+            $target = BASE_PATH . '/' . $relative;
+            if ($item->isDir()) { if (!is_dir($target) && !mkdir($target, 0755, true)) throw new RuntimeException("Unable to create {$relative}."); continue; }
+            $directory = dirname($target); if (!is_dir($directory) && !mkdir($directory, 0755, true)) throw new RuntimeException("Unable to create the directory for {$relative}.");
+            $temporary = $target . '.update-' . bin2hex(random_bytes(3));
+            if (!copy($item->getPathname(), $temporary)) throw new RuntimeException("Unable to prepare {$relative}.");
+            if (is_file($target) && is_writable($target)) {
+                $installedOk = copy($temporary, $target); @unlink($temporary);
+            } elseif (is_writable($directory)) {
+                $installedOk = rename($temporary, $target);
+            } else {
+                @unlink($temporary); $installedOk = false;
+            }
+            if (!$installedOk) throw new RuntimeException("Unable to install {$relative}.");
+        }
     }
 
     private static function restoreFiles(string $backupPath, array $installed): void
@@ -248,6 +270,36 @@ class PortableUpdater
             copy('zip://' . $backupPath . '#' . $name, $target);
         }
         $zip->close();
+    }
+
+    private static function assertInstallable(string $source): void
+    {
+        $blocked = [];
+        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($source, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::LEAVES_ONLY);
+        foreach ($iterator as $item) {
+            if (!$item->isFile()) continue;
+            $relative = str_replace('\\', '/', substr($item->getPathname(), strlen($source) + 1));
+            if (self::preserved($relative) || self::legacyUpdater($relative, $item->getPathname())) continue;
+            $target = BASE_PATH . '/' . $relative;
+            $parent = dirname($target);
+            while (!is_dir($parent) && $parent !== BASE_PATH) $parent = dirname($parent);
+            if (is_file($target)) {
+                if (!is_writable($target) && !is_writable(dirname($target))) $blocked[] = $relative;
+            } elseif (!is_writable($parent)) {
+                $blocked[] = $relative;
+            }
+            if (count($blocked) >= 8) break;
+        }
+        if ($blocked) throw new RuntimeException('Installation permission check failed for: ' . implode(', ', $blocked));
+    }
+
+    private static function legacyUpdater(string $relative, string $sourcePath): bool
+    {
+        if ($relative !== 'core/PortableUpdater.php') return false;
+        $incoming = (string) @file_get_contents($sourcePath);
+        // Prevent an older GitHub package from overwriting the hardened
+        // installer and recreating a permanent update-failure loop.
+        return !str_contains($incoming, 'private static function assertInstallable');
     }
 
     private static function runNewMigrations(): array
