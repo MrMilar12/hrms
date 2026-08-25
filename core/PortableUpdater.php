@@ -85,15 +85,26 @@ class PortableUpdater
 
     private static function githubJson(string $path): array
     {
-        $temp = tempnam(sys_get_temp_dir(), 'hrms-gh-');
+        self::ensureDirectories();
+        $temp = tempnam(STORAGE_PATH . '/cache', 'hrms-gh-');
+        if ($temp === false || $temp === '') {
+            throw new RuntimeException('Unable to create a temporary GitHub response file.');
+        }
         self::download($path, $temp);
-        try { return json_decode((string) file_get_contents($temp), true, 512, JSON_THROW_ON_ERROR); }
+        try {
+            $contents = file_get_contents($temp);
+            if ($contents === false || $contents === '') throw new RuntimeException('GitHub returned an empty response.');
+            return json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
+        }
         finally { @unlink($temp); }
     }
 
     private static function download(string $path, string $destination): void
     {
         if (!extension_loaded('curl')) throw new RuntimeException('PHP cURL is required.');
+        if ($destination === '') throw new RuntimeException('The update download destination is invalid.');
+        $directory = dirname($destination);
+        if (!is_dir($directory) || !is_writable($directory)) throw new RuntimeException('The updater cache directory is not writable.');
         $handle = fopen($destination, 'wb'); if (!$handle) throw new RuntimeException('Unable to create update download.');
         $headers = ['Accept: application/vnd.github+json', 'X-GitHub-Api-Version: 2022-11-28'];
         $token = trim((string) getenv('HRMS_GITHUB_TOKEN')); if ($token !== '') $headers[] = 'Authorization: Bearer ' . $token;
