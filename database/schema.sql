@@ -134,6 +134,7 @@ CREATE TABLE system_releases (
     created_by INT UNSIGNED NULL,
     github_release_id BIGINT UNSIGNED NULL UNIQUE,
     release_url VARCHAR(500) NULL,
+    source_commit CHAR(40) NULL UNIQUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_system_releases_published (is_published, released_at)

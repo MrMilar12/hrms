@@ -1,16 +1,21 @@
 <?php
 /** @var array $releases */
+/** @var ?array $githubStatus */
+/** @var ?string $githubError */
 require MODULES_PATH . '/shared/views/header.php';
 ?>
 <section class="release-admin-page">
     <div class="glass-card release-history-hero">
         <div><span class="launcher-eyebrow">Administration</span><h1>System Updates</h1><p>Create release notes and announce changes to every user.</p></div>
-        <div class="release-admin-source"><span class="release-version">Current version <?= htmlspecialchars(SystemRelease::currentVersion()) ?></span><button class="btn btn-primary" type="button" id="github-release-sync">Sync from GitHub</button></div>
+        <span class="release-version">Current version <?= htmlspecialchars(SystemRelease::currentVersion()) ?></span>
     </div>
 
     <div class="release-admin-grid">
         <div class="glass-card">
-            <h2>Create an update</h2>
+            <?php if ($githubError): ?>
+                <span class="launcher-eyebrow">GitHub status</span><h2>Unable to check GitHub</h2><p class="release-empty"><?= htmlspecialchars($githubError) ?></p>
+            <?php elseif (!empty($githubStatus['notification_needed'])): ?>
+            <div class="release-detected-heading"><div><span class="updater-signal"></span><span class="launcher-eyebrow">New update detected</span><h2>Publish version notification</h2></div><code><?= htmlspecialchars(substr($githubStatus['remote_sha'], 0, 12)) ?></code></div>
             <form id="release-form">
                 <div class="form-row">
                     <div class="form-group"><label for="release-version">Version</label><input id="release-version" name="version" placeholder="1.2.0" pattern="\d+\.\d+\.\d+.*" required></div>
@@ -18,8 +23,11 @@ require MODULES_PATH . '/shared/views/header.php';
                 </div>
                 <div class="form-group"><label for="release-changes">Changes <small>(one item per line)</small></label><textarea id="release-changes" name="changes" rows="8" placeholder="Added...&#10;Improved...&#10;Fixed..." required></textarea></div>
                 <label class="release-publish-check"><input type="checkbox" name="is_published" value="1"> Publish immediately and show after login</label>
-                <button class="btn btn-primary" type="submit">Save system update</button>
+                <button class="btn btn-primary" type="submit">Save version notification</button>
             </form>
+            <?php else: ?>
+                <span class="updater-signal current"></span><span class="launcher-eyebrow">GitHub status</span><h2>No new update</h2><p class="release-empty">Version controls will appear here after a new commit is pushed to the main branch.</p>
+            <?php endif; ?>
         </div>
 
         <div class="glass-card">
@@ -37,13 +45,7 @@ require MODULES_PATH . '/shared/views/header.php';
     </div>
 </section>
 <script>
-document.getElementById('github-release-sync').addEventListener('click', async function () {
-    this.disabled = true; this.textContent = 'Syncing...';
-    const result = await HRIS.postForm(`${window.BASE_URL}/admin/releases/sync`, new FormData());
-    if (result.success) { HRIS.flash(result.message, 'success'); setTimeout(() => window.location.reload(), 700); }
-    else { this.disabled = false; this.textContent = 'Sync from GitHub'; HRIS.flash(result.error || 'GitHub sync failed.', 'error'); }
-});
-document.getElementById('release-form').addEventListener('submit', async (event) => {
+document.getElementById('release-form')?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const result = await HRIS.postForm(`${window.BASE_URL}/admin/releases/store`, new FormData(event.target));
     if (result.success) window.location.reload();

@@ -196,12 +196,12 @@ class SystemUpdater
         $notes = $notes !== '' ? $notes : 'System improvements and maintenance updates.';
         $url = 'https://github.com/' . GITHUB_REPOSITORY . '/commit/' . $sha;
         $stmt = Database::getInstance()->prepare(
-            'INSERT INTO system_releases (version, title, changes, released_at, is_published, created_by, release_url)
-             VALUES (?, ?, ?, NOW(), 1, ?, ?)
+            'INSERT INTO system_releases (version, title, changes, released_at, is_published, created_by, release_url, source_commit)
+             VALUES (?, ?, ?, NOW(), 1, ?, ?, ?)
              ON DUPLICATE KEY UPDATE title = VALUES(title), changes = VALUES(changes), released_at = NOW(),
-                is_published = 1, created_by = VALUES(created_by), release_url = VALUES(release_url)'
+                is_published = 1, created_by = VALUES(created_by), release_url = VALUES(release_url), source_commit = VALUES(source_commit)'
         );
-        $stmt->execute([$version, 'HRMS Version ' . $version, $notes, $developerId, $url]);
+        $stmt->execute([$version, 'HRMS Version ' . $version, $notes, $developerId, $url, $sha]);
     }
 
     private static function ensureDeploymentTable(): void

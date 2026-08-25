@@ -500,6 +500,23 @@ class AdminController extends Controller
     public function releases(): void
     {
         Auth::requireDeveloper();
+        try {
+            $githubStatus = SystemUpdater::status();
+            $sourceCount = (int) Database::getInstance()->query('SELECT COUNT(*) FROM system_releases WHERE source_commit IS NOT NULL')->fetchColumn();
+            if ($sourceCount === 0 && !$githubStatus['update_available']) {
+                $baseline = Database::getInstance()->prepare(
+                    'UPDATE system_releases SET source_commit = ? WHERE is_published = 1 ORDER BY released_at DESC, id DESC LIMIT 1'
+                );
+                $baseline->execute([$githubStatus['remote_sha']]);
+            }
+            $announced = Database::getInstance()->prepare('SELECT COUNT(*) FROM system_releases WHERE source_commit = ?');
+            $announced->execute([$githubStatus['remote_sha']]);
+            $githubStatus['notification_needed'] = !(int) $announced->fetchColumn();
+            $githubError = null;
+        } catch (Throwable $e) {
+            $githubStatus = null;
+            $githubError = $e->getMessage();
+        }
         $releases = Database::getInstance()->query(
             'SELECT sr.*, u.username AS creator,
                     (SELECT COUNT(*) FROM user_release_views urv WHERE urv.release_id = sr.id) AS view_count
@@ -507,7 +524,10 @@ class AdminController extends Controller
              LEFT JOIN users u ON u.id = sr.created_by
              ORDER BY sr.released_at DESC, sr.id DESC'
         )->fetchAll();
-        $this->view('admin', 'releases', ['pageTitle' => 'System Updates', 'releases' => $releases]);
+        $this->view('admin', 'releases', [
+            'pageTitle' => 'System Updates', 'releases' => $releases,
+            'githubStatus' => $githubStatus, 'githubError' => $githubError,
+        ]);
     }
 
     public function storeRelease(): void
@@ -519,8 +539,21 @@ class AdminController extends Controller
         $title = Validator::sanitizeString($_POST['title'] ?? '');
         $changes = trim((string) ($_POST['changes'] ?? ''));
         $publish = isset($_POST['is_published']) ? 1 : 0;
+        try {
+            $githubStatus = SystemUpdater::status();
+        } catch (Throwable $e) {
+            $this->json(['success' => false, 'error' => 'Unable to verify the new GitHub update: ' . $e->getMessage()], 502);
+        }
+        $alreadyAnnounced = Database::getInstance()->prepare('SELECT COUNT(*) FROM system_releases WHERE source_commit = ?');
+        $alreadyAnnounced->execute([$githubStatus['remote_sha']]);
+        if ((int) $alreadyAnnounced->fetchColumn()) {
+            $this->json(['success' => false, 'error' => 'This GitHub update has already been announced.'], 422);
+        }
         if (!preg_match('/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/', $version)) {
             $this->json(['success' => false, 'error' => 'Use a version such as 1.2.0.'], 422);
+        }
+        if (version_compare($version, SystemRelease::currentVersion(), '<=')) {
+            $this->json(['success' => false, 'error' => 'The new version must be higher than the current system version.'], 422);
         }
         if ($title === '' || $changes === '') {
             $this->json(['success' => false, 'error' => 'Title and changes are required.'], 422);
@@ -529,10 +562,11 @@ class AdminController extends Controller
         try {
             $pdo = Database::getInstance();
             $stmt = $pdo->prepare(
-                'INSERT INTO system_releases (version, title, changes, released_at, is_published, created_by)
-                 VALUES (?, ?, ?, NOW(), ?, ?)'
+                'INSERT INTO system_releases (version, title, changes, released_at, is_published, created_by, release_url, source_commit)
+                 VALUES (?, ?, ?, NOW(), ?, ?, ?, ?)'
             );
-            $stmt->execute([$version, $title, $changes, $publish, Auth::userId()]);
+            $commitUrl = 'https://github.com/' . GITHUB_REPOSITORY . '/commit/' . $githubStatus['remote_sha'];
+            $stmt->execute([$version, $title, $changes, $publish, Auth::userId(), $commitUrl, $githubStatus['remote_sha']]);
             $id = (int) $pdo->lastInsertId();
             AuditLogger::log('create', 'system_releases', $id, null, ['version' => $version, 'published' => (bool) $publish]);
             $this->json(['success' => true, 'message' => $publish ? 'Update published.' : 'Draft saved.']);
