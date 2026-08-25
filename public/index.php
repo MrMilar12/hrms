@@ -76,6 +76,7 @@ $router->get('/profile', fn() => (new ProfileController())->show());
 $router->post('/profile/update', fn() => (new ProfileController())->update());
 $router->post('/profile/photo', fn() => (new ProfileController())->uploadPhoto());
 $router->get('/profile/security', fn() => (new ProfileController())->security());
+$router->get('/settings', fn() => (new SettingsController())->index());
 $router->post('/profile/security/2fa/enable', fn() => (new ProfileController())->enableTwoFactor());
 $router->post('/profile/security/2fa/disable', fn() => (new ProfileController())->disableTwoFactor());
 $router->get('/employees', fn() => (new EmployeeController())->index());
@@ -106,6 +107,8 @@ $router->get('/files/task-attachment/{id}', fn($id) => (new FileController())->t
 $router->get('/files/accomplishment-attachment/{id}', fn($id) => (new FileController())->accomplishmentAttachment($id));
 $router->get('/search', fn() => (new SearchController())->index());
 $router->post('/notifications/read', fn() => (new NotificationController())->markRead());
+$router->post('/records/unlock', fn() => (new RecordLockController())->unlock());
+$router->post('/records/lock', fn() => (new RecordLockController())->lock());
 
 // ---- Accomplishments & Evidence ----
 $router->get('/accomplishments', fn() => (new AccomplishmentController())->index());

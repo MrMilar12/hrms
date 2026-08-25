@@ -49,6 +49,84 @@ const HRIS = (() => {
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
+    // ---- Appearance settings ----
+    const appearanceRoot = document.querySelector('[data-appearance-settings]');
+    if (appearanceRoot) {
+        const storageKey = 'hrms-appearance';
+        const defaults = { mode: 'system', palette: 'ocean', primary: '#3b6fe0', secondary: '#8b5cf6' };
+        const palettes = {};
+        appearanceRoot.querySelectorAll('[data-palette-choice]').forEach(button => {
+            palettes[button.dataset.paletteChoice] = {
+                primary: button.dataset.primary,
+                secondary: button.dataset.secondary,
+            };
+        });
+        const readSettings = () => {
+            try { return { ...defaults, ...JSON.parse(localStorage.getItem(storageKey) || '{}') }; }
+            catch (_) { return { ...defaults }; }
+        };
+        let settings = readSettings();
+        const status = appearanceRoot.querySelector('[data-settings-status]');
+        const primaryInput = appearanceRoot.querySelector('[data-custom-primary]');
+        const secondaryInput = appearanceRoot.querySelector('[data-custom-secondary]');
+        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+
+        const applySettings = (announce = false) => {
+            const dark = settings.mode === 'dark' || (settings.mode === 'system' && systemTheme.matches);
+            document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+            document.documentElement.style.setProperty('--accent-blue', settings.primary);
+            document.documentElement.style.setProperty('--accent-violet', settings.secondary);
+            document.documentElement.style.setProperty('--accent-primary', settings.primary);
+            appearanceRoot.querySelectorAll('[data-theme-choice]').forEach(button => {
+                const selected = button.dataset.themeChoice === settings.mode;
+                button.classList.toggle('selected', selected);
+                button.setAttribute('aria-checked', String(selected));
+            });
+            appearanceRoot.querySelectorAll('[data-palette-choice]').forEach(button => {
+                const selected = button.dataset.paletteChoice === settings.palette;
+                button.classList.toggle('selected', selected);
+                button.setAttribute('aria-checked', String(selected));
+            });
+            primaryInput.value = settings.primary;
+            secondaryInput.value = settings.secondary;
+            if (announce && status) {
+                status.textContent = 'Saved';
+                status.classList.add('is-saved');
+                window.setTimeout(() => { status.textContent = 'Changes save automatically'; status.classList.remove('is-saved'); }, 1600);
+            }
+        };
+        const save = () => { localStorage.setItem(storageKey, JSON.stringify(settings)); applySettings(true); };
+
+        appearanceRoot.querySelectorAll('[data-theme-choice]').forEach(button => button.addEventListener('click', () => {
+            settings.mode = button.dataset.themeChoice;
+            save();
+        }));
+        appearanceRoot.querySelectorAll('[data-palette-choice]').forEach(button => button.addEventListener('click', () => {
+            settings = { ...settings, palette: button.dataset.paletteChoice, ...palettes[button.dataset.paletteChoice] };
+            save();
+        }));
+        const advancedToggle = appearanceRoot.querySelector('[data-advanced-toggle]');
+        const advancedPanel = appearanceRoot.querySelector('[data-advanced-panel]');
+        advancedToggle.addEventListener('click', () => {
+            const open = advancedToggle.getAttribute('aria-expanded') !== 'true';
+            advancedToggle.setAttribute('aria-expanded', String(open));
+            advancedPanel.hidden = !open;
+        });
+        appearanceRoot.querySelector('[data-apply-custom]').addEventListener('click', () => {
+            settings = { ...settings, palette: 'custom', primary: primaryInput.value, secondary: secondaryInput.value };
+            save();
+        });
+        [primaryInput, secondaryInput].forEach(input => input.addEventListener('input', () => {
+            document.documentElement.style.setProperty(input === primaryInput ? '--accent-blue' : '--accent-violet', input.value);
+        }));
+        appearanceRoot.querySelector('[data-reset-appearance]').addEventListener('click', () => {
+            settings = { ...defaults };
+            save();
+        });
+        systemTheme.addEventListener?.('change', () => { if (settings.mode === 'system') applySettings(); });
+        applySettings();
+    }
+
     // ---- Universal table list/card view ----
     document.querySelectorAll('table:not([data-view-toggle="off"])').forEach((table, tableIndex) => {
         if (!table.tHead || !table.tBodies.length || table.dataset.viewReady === '1') return;

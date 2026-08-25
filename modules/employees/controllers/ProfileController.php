@@ -72,6 +72,7 @@ class ProfileController extends Controller
             'pdsPercent' => $this->pdsModel->completionPercent($employeeId),
             'qrDataUri' => $qrResult->getDataUri(),
             'saved' => isset($_GET['saved']),
+            'isUnlocked' => Auth::isRecordUnlocked('profile'),
         ]);
     }
 
@@ -79,6 +80,9 @@ class ProfileController extends Controller
     {
         Auth::requireLogin();
         $this->requireCsrf();
+        if (!Auth::isRecordUnlocked('profile')) {
+            $this->json(['success' => false, 'error' => 'Your profile is locked. Confirm your password before editing.'], 423);
+        }
         $employeeId = Auth::employeeId();
         if (!$employeeId) {
             $this->json(['success' => false, 'error' => 'No employee record is linked to this account.'], 403);
@@ -188,6 +192,9 @@ class ProfileController extends Controller
     {
         Auth::requireLogin();
         $this->requireCsrf();
+        if (!Auth::isRecordUnlocked('profile')) {
+            $this->json(['success' => false, 'error' => 'Your profile is locked. Confirm your password before changing the photo.'], 423);
+        }
         $employeeId = Auth::employeeId();
         if (!$employeeId) {
             $this->json(['success' => false, 'error' => 'No employee record is linked to this account.'], 403);

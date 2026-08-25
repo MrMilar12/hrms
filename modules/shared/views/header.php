@@ -30,6 +30,9 @@ if (Auth::check()) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="csrf-token" content="<?= htmlspecialchars(Auth::csrfToken()) ?>">
 <title><?= htmlspecialchars($pageTitle) ?> &mdash; HRMS</title>
+<script>
+(function(){try{var s=JSON.parse(localStorage.getItem('hrms-appearance')||'{}');var m=s.mode||'system';var d=m==='dark'||(m==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';if(/^#[0-9a-f]{6}$/i.test(s.primary||''))document.documentElement.style.setProperty('--accent-blue',s.primary);if(/^#[0-9a-f]{6}$/i.test(s.secondary||''))document.documentElement.style.setProperty('--accent-violet',s.secondary);document.documentElement.style.setProperty('--accent-primary','var(--accent-blue)');}catch(e){}})();
+</script>
 <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/glass.css?v=<?= rawurlencode(CSS_ASSET_VERSION) ?>">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>window.BASE_URL = '<?= BASE_URL ?>'; window.OPEN_APP_DRAWER = <?= $openAppDrawer ? 'true' : 'false' ?>;</script>
@@ -52,6 +55,7 @@ if (Auth::check()) {
                 <a class="app-nav-card <?= $isActive('/employees') ?>" href="<?= BASE_URL ?>/employees"><span class="app-nav-icon">&#128100;</span><span><strong>Employees</strong><small>People directory</small></span></a>
             <?php endif; ?>
             <a class="app-nav-card <?= $isActive('/profile') ?: $isActive('/pds') ?>" href="<?= BASE_URL ?>/profile"><span class="app-nav-icon">&#128100;</span><span><strong>My Profile</strong><small>Information &amp; PDS</small></span></a>
+            <a class="app-nav-card <?= $isActive('/settings') ?>" href="<?= BASE_URL ?>/settings"><span class="app-nav-icon">&#9881;</span><span><strong>Settings</strong><small>Theme &amp; colors</small></span></a>
             <a class="app-nav-card <?= $isActive('/tasks') ?>" href="<?= BASE_URL ?>/tasks"><span class="app-nav-icon">&#10003;</span><span><strong>Tasks</strong><small>Work board</small></span></a>
             <?php if (Auth::can('accomplishment.create')): ?>
                 <a class="app-nav-card <?= $isActive('/accomplishments') ?>" href="<?= BASE_URL ?>/accomplishments"><span class="app-nav-icon">&#10022;</span><span><strong>Accomplishments</strong><small>Evidence &amp; reviews</small></span></a>
@@ -101,6 +105,7 @@ if (Auth::check()) {
             </div>
 
             <div class="header-actions">
+                <a class="icon-button header-settings-link <?= $isActive('/settings') ?>" href="<?= BASE_URL ?>/settings" aria-label="Appearance settings" title="Appearance settings">&#9881;</a>
                 <div class="notification-control">
                     <button class="icon-button <?= $unreadNotificationCount ? 'pulse' : '' ?>" id="notif-toggle" aria-label="Notifications<?= $unreadNotificationCount ? ' (' . $unreadNotificationCount . ' unread)' : '' ?>" data-unread="<?= $unreadNotificationCount ?>">
                         &#128276;

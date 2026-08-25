@@ -3,6 +3,8 @@
 
 class Auth
 {
+    private const RECORD_UNLOCK_SECONDS = 900;
+    private const RECORD_LOCK_SCOPES = ['profile', 'pds'];
     private const MAX_FAILED_ATTEMPTS = 5;
     private const LOCKOUT_MINUTES = 15;
     private const SESSION_IDLE_SECONDS = 1800;
@@ -308,5 +310,38 @@ class Auth
     public static function verifyCsrfToken(string $token): bool
     {
         return !empty($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+    }
+
+    public static function isRecordUnlocked(string $scope): bool
+    {
+        if (!in_array($scope, self::RECORD_LOCK_SCOPES, true)) return false;
+        $expiresAt = (int) ($_SESSION['record_unlocks'][$scope] ?? 0);
+        if ($expiresAt <= time()) {
+            unset($_SESSION['record_unlocks'][$scope]);
+            return false;
+        }
+        return true;
+    }
+
+    public static function unlockRecord(string $scope, string $password): bool
+    {
+        if (!in_array($scope, self::RECORD_LOCK_SCOPES, true) || $password === '' || !self::userId()) return false;
+        $stmt = Database::getInstance()->prepare('SELECT password_hash FROM users WHERE id = ? AND status = "active" LIMIT 1');
+        $stmt->execute([self::userId()]);
+        $hash = $stmt->fetchColumn();
+        if (!$hash || !password_verify($password, $hash)) {
+            AuditLogger::log('record_unlock_failed', $scope, self::employeeId(), null, ['scope' => $scope]);
+            return false;
+        }
+        $_SESSION['record_unlocks'][$scope] = time() + self::RECORD_UNLOCK_SECONDS;
+        AuditLogger::log('record_unlocked', $scope, self::employeeId(), null, ['scope' => $scope]);
+        return true;
+    }
+
+    public static function lockRecord(string $scope): void
+    {
+        if (!in_array($scope, self::RECORD_LOCK_SCOPES, true)) return;
+        unset($_SESSION['record_unlocks'][$scope]);
+        AuditLogger::log('record_locked', $scope, self::employeeId(), null, ['scope' => $scope]);
     }
 }

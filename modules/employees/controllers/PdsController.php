@@ -62,6 +62,7 @@ class PdsController extends Controller
             'characterReferences' => $this->pdsModel->getRows('character_references', $employeeId),
             'completion' => $this->pdsModel->completionStatus($employeeId),
             'completionPercent' => $this->pdsModel->completionPercent($employeeId),
+            'isUnlocked' => Auth::isRecordUnlocked('pds'),
         ];
 
         $this->view('employees', 'pds_form', $data);
@@ -71,6 +72,10 @@ class PdsController extends Controller
     {
         Auth::requireLogin();
         $this->requireCsrf();
+
+        if (!Auth::isRecordUnlocked('pds')) {
+            $this->json(['success' => false, 'error' => 'Your PDS is locked. Confirm your password before editing.'], 423);
+        }
 
         $employeeId = $this->resolveEmployeeId();
         if (!$employeeId) {
