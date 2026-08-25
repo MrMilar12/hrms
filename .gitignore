@@ -9,6 +9,8 @@
 /storage/cache/*
 !/storage/logs/.gitkeep
 !/storage/cache/.gitkeep
+/storage/backups/*
+!/storage/backups/.gitkeep
 /storage/installed.lock
 /storage/app.key
 .DS_Store

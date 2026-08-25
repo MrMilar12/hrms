@@ -75,8 +75,26 @@ if (Auth::check()) {
                     <a class="app-nav-card <?= $isActive('/admin/departments') ?>" href="<?= BASE_URL ?>/admin/departments"><span class="app-nav-icon">&#9671;</span><span><strong>Departments</strong><small>Organization</small></span></a>
                     <a class="app-nav-card <?= $isActive('/admin/positions') ?>" href="<?= BASE_URL ?>/admin/positions"><span class="app-nav-icon">&#9734;</span><span><strong>Positions</strong><small>Job catalogue</small></span></a>
                     <?php if (Auth::isDeveloper()): ?><a class="app-nav-card <?= $isActive('/admin/releases') ?>" href="<?= BASE_URL ?>/admin/releases"><span class="app-nav-icon">&#128640;</span><span><strong>System Updates</strong><small>Release notes</small></span></a><?php endif; ?>
+                    <?php if (Auth::isDeveloper()): ?><a class="app-nav-card <?= $isActive('/admin/updater') ?>" href="<?= BASE_URL ?>/admin/updater"><span class="app-nav-icon">&#8635;</span><span><strong>System Updater</strong><small id="system-update-nav-status">Checking GitHub…</small></span></a><?php endif; ?>
                 <?php endif; ?>
             </nav>
+        <?php endif; ?>
+        <?php if (Auth::isDeveloper()): ?>
+        <script>
+        window.addEventListener('DOMContentLoaded', async () => {
+            const label = document.getElementById('system-update-nav-status');
+            if (!label) return;
+            try {
+                const response = await fetch(`${window.BASE_URL}/admin/updater/status`, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+                const result = await response.json();
+                if (!result.success) throw new Error(result.error || 'Check failed');
+                label.textContent = result.status.update_available
+                    ? (!result.status.working_tree_clean ? 'Update blocked: local changes' : (!result.status.deployment_writable ? 'Update worker required' : 'New version detected'))
+                    : 'System is up to date';
+                if (result.status.update_available) label.classList.add('system-update-available');
+            } catch (error) { label.textContent = 'Unable to check GitHub'; }
+        });
+        </script>
         <?php endif; ?>
         <div class="drawer-user">
             <span class="avatar"><?= htmlspecialchars($initials) ?></span>
