@@ -22,6 +22,7 @@ $requirements = [
     'PDO MySQL extension' => extension_loaded('pdo_mysql'),
     'database/schema.sql present' => is_file(BASE_PATH . '/database/schema.sql'),
     'database/seed.sql present' => is_file(BASE_PATH . '/database/seed.sql'),
+    'database/seed_current_data.sql present' => is_file(BASE_PATH . '/database/seed_current_data.sql'),
     'config/ folder writable' => is_writable(CONFIG_PATH),
     'storage/ folder writable' => is_writable(STORAGE_PATH),
 ];
@@ -38,7 +39,7 @@ function runSqlFile(PDO $pdo, string $path): void
     $sql = file_get_contents($path);
     // Strip line comments, then split on statement-terminating semicolons.
     $sql = preg_replace('/^--.*$/m', '', $sql);
-    foreach (explode(";\n", $sql) as $statement) {
+    foreach (preg_split('/;\s*(?:\r?\n|$)/', $sql) ?: [] as $statement) {
         $statement = trim($statement);
         if ($statement === '') {
             continue;
@@ -64,6 +65,7 @@ if ($requirementsMet && !$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'PO
     $dbName = trim($_POST['db_name'] ?? '');
     $dbUser = trim($_POST['db_user'] ?? '');
     $dbPass = (string) ($_POST['db_pass'] ?? '');
+    $dataset = ($_POST['dataset'] ?? 'current') === 'starter' ? 'starter' : 'current';
 
     $adminUsername = trim($_POST['admin_username'] ?? '');
     $adminEmail = trim($_POST['admin_email'] ?? '');
@@ -99,7 +101,12 @@ if ($requirementsMet && !$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'PO
             ]);
 
             runSqlFile($pdo, BASE_PATH . '/database/schema.sql');
-            runSqlFile($pdo, BASE_PATH . '/database/seed.sql');
+            runSqlFile($pdo, BASE_PATH . ($dataset === 'current' ? '/database/seed_current_data.sql' : '/database/seed.sql'));
+
+            // Never leave credentials copied from the snapshot active on a fresh install.
+            if ($dataset === 'current') {
+                $pdo->exec("UPDATE users SET status = 'inactive', two_factor_secret = NULL, two_factor_enabled = 0, failed_login_attempts = 0, locked_until = NULL");
+            }
 
             // Create/update the admin account with the submitted credentials.
             $roleId = $pdo->query("SELECT id FROM roles WHERE name = 'Admin'")->fetchColumn();
@@ -216,6 +223,13 @@ if ($requirementsMet && !$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'PO
             <div class="form-row">
                 <div class="form-group"><label>DB Username</label><input name="db_user" value="<?= htmlspecialchars($_POST['db_user'] ?? 'root') ?>" required></div>
                 <div class="form-group"><label>DB Password</label><input type="password" name="db_pass" value="" placeholder="Leave blank if none"></div>
+            </div>
+
+            <h3 style="margin:1.25rem 0 0.25rem;">Installation Data</h3>
+            <p style="margin:0 0 0.75rem; font-size:0.8rem; color:var(--text-muted);">Restore the exported working dataset or begin with only basic reference records.</p>
+            <div class="form-group">
+                <label><input type="radio" name="dataset" value="current" <?= ($_POST['dataset'] ?? 'current') === 'current' ? 'checked' : '' ?>> Current snapshot (10,004 employees and completed PDS sample data)</label>
+                <label><input type="radio" name="dataset" value="starter" <?= ($_POST['dataset'] ?? '') === 'starter' ? 'checked' : '' ?>> Starter data only</label>
             </div>
 
             <h3 style="margin:1.25rem 0 0.25rem;">Administrator Account</h3>
