@@ -380,6 +380,14 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const renderSearch = (results, query) => {
             searchResults.replaceChildren();
+            const heading = document.createElement('div');
+            heading.className = 'global-search-results-head';
+            const headingTitle = document.createElement('strong');
+            headingTitle.textContent = 'Search results';
+            const headingMeta = document.createElement('small');
+            headingMeta.textContent = results.length ? `${results.length} match${results.length === 1 ? '' : 'es'} for “${query}”` : `Searching HRMS for “${query}”`;
+            heading.append(headingTitle, headingMeta);
+            searchResults.appendChild(heading);
             if (!results.length) {
                 const empty = document.createElement('div');
                 empty.className = 'global-search-empty';
@@ -405,6 +413,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     link.append(type, copy);
                     searchResults.appendChild(link);
                 });
+                const footer = document.createElement('div');
+                footer.className = 'global-search-results-footer';
+                footer.innerHTML = '<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Open</span><span><kbd>Esc</kbd> Close</span>';
+                searchResults.appendChild(footer);
             }
             openSearch();
             activeResult = -1;

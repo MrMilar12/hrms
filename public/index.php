@@ -11,7 +11,7 @@ if (is_file($maintenanceFile) && !str_starts_with($requestPath, BASE_URL . '/adm
     header('Retry-After: 60');
     header('Content-Type: text/html; charset=UTF-8');
     $message = htmlspecialchars($maintenance['message'] ?? 'HRMS is being updated. Please try again shortly.');
-    echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HRMS Update</title></head><body style="font-family:system-ui;display:grid;place-items:center;min-height:100vh;margin:0;background:#f4f7fb;color:#1e293b"><main style="max-width:520px;padding:2rem;text-align:center"><h1>System update in progress</h1><p>' . $message . '</p><p>Please refresh in a few minutes.</p></main></body></html>';
+    echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>HRMS Update</title></head><body style="font-family:system-ui;display:grid;place-items:center;min-height:100vh;margin:0;background:#f4f7fb;color:#1e293b"><main style="max-width:520px;padding:2rem;text-align:center"><h1>System update in progress</h1><p>' . $message . '</p><p>Please refresh in a few minutes.</p></main></body></html>';
     exit;
 }
 
@@ -140,6 +140,7 @@ $router->post('/accomplishments/{aid}/attachments/{atid}/delete', fn($aid, $atid
 
 // ---- Administration ----
 $router->get('/admin/dashboard', fn() => (new AdminController())->dashboard());
+$router->get('/admin/analytics/details', fn() => (new AdminController())->analyticsDetails());
 $router->get('/admin/activity', fn() => (new AdminController())->activity());
 $router->get('/admin/users', fn() => (new AdminController())->users());
 $router->post('/admin/users/{id}/status', fn($id) => (new AdminController())->updateUserStatus($id));

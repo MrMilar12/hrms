@@ -106,6 +106,17 @@ class ProfileController extends Controller
             $firstFieldErrors = reset($errors);
             $this->json(['success' => false, 'error' => $firstFieldErrors[0] ?? 'Please check the form.'], 422);
         }
+        $birthDateInput = trim((string) ($_POST['birth_date'] ?? ''));
+        $dateHiredInput = trim((string) ($_POST['date_hired'] ?? ''));
+        if ($dateHiredInput !== '' && $dateHiredInput > date('Y-m-d')) {
+            $this->json(['success' => false, 'error' => 'Date hired cannot be in the future.'], 422);
+        }
+        if ($birthDateInput !== '' && $dateHiredInput !== '') {
+            $minimumHireDate = (new DateTimeImmutable($birthDateInput))->modify('+15 years')->format('Y-m-d');
+            if ($dateHiredInput < $minimumHireDate) {
+                $this->json(['success' => false, 'error' => 'Date hired must be based on the employee appointment date, not the birth date.'], 422);
+            }
+        }
 
         $pdo = Database::getInstance();
         $username = Validator::sanitizeString($_POST['username']);

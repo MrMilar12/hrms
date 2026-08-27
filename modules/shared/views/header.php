@@ -8,11 +8,20 @@ $isDashboard = strcasecmp($normalizedCurrentPath, rtrim(BASE_URL, '/')) === 0
     || strcasecmp($normalizedCurrentPath, rtrim(BASE_URL . '/dashboard', '/')) === 0;
 $displayName = Auth::check() ? Auth::displayName() : '';
 $initials = strtoupper(substr($displayName ?: '?', 0, 1));
+$headerPhotoUrl = null;
 $openAppDrawer = false;
 
 $headerNotifications = [];
 $unreadNotificationCount = 0;
 if (Auth::check()) {
+    if (Auth::employeeId()) {
+        $photoStmt = Database::getInstance()->prepare('SELECT id, file_path FROM employee_photos WHERE employee_id = ? ORDER BY uploaded_at DESC LIMIT 1');
+        $photoStmt->execute([Auth::employeeId()]);
+        $headerPhoto = $photoStmt->fetch();
+        if ($headerPhoto && is_file((string) $headerPhoto['file_path'])) {
+            $headerPhotoUrl = BASE_URL . '/photo/' . UrlId::encode((int) $headerPhoto['id']);
+        }
+    }
     $stmt = Database::getInstance()->prepare(
         'SELECT id, message, link, is_read, created_at FROM notifications WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC LIMIT 6'
     );
@@ -27,7 +36,11 @@ if (Auth::check()) {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HRMS">
 <meta name="csrf-token" content="<?= htmlspecialchars(Auth::csrfToken()) ?>">
 <title><?= htmlspecialchars($pageTitle) ?> &mdash; HRMS</title>
 <script>
@@ -42,15 +55,15 @@ if (Auth::check()) {
 
 <div class="app-shell">
     <div class="app-drawer-backdrop <?= $openAppDrawer ? 'open' : '' ?>" id="app-drawer-backdrop" aria-hidden="<?= $openAppDrawer ? 'false' : 'true' ?>"></div>
-    <aside class="app-drawer glass-strong <?= $openAppDrawer ? 'open' : '' ?>" id="app-drawer" aria-label="Application navigation" aria-hidden="<?= $openAppDrawer ? 'false' : 'true' ?>">
+    <aside class="app-drawer glass-strong <?= $openAppDrawer ? 'open' : '' ?>" id="app-drawer" role="dialog" aria-modal="true" aria-labelledby="app-drawer-title" aria-hidden="<?= $openAppDrawer ? 'false' : 'true' ?>">
         <div class="drawer-heading">
-            <div class="drawer-brand"><span class="brand-dot"></span><span><strong>HRMS</strong><small>Workspace</small></span></div>
+            <div class="drawer-brand"><span class="drawer-brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><small>HRMS workspace</small><strong id="app-drawer-title">All applications</strong></span></div>
             <button class="drawer-close" id="drawer-close" type="button" aria-label="Close app drawer">&times;</button>
         </div>
-        <p class="drawer-kicker">Applications</p>
-        <p class="drawer-intro">Choose a workspace to continue.</p>
+        <p class="drawer-intro">Choose where you want to continue.</p>
+        <p class="drawer-kicker">My workspace</p>
         <nav class="app-card-grid">
-            <a class="app-nav-card <?= $isActive('/dashboard') ?: $isActive(BASE_URL . '/') ?>" href="<?= BASE_URL ?>/dashboard"><span class="app-nav-icon">&#9638;</span><span><strong>Dashboard</strong><small>Overview</small></span></a>
+            <a class="app-nav-card <?= $isActive('/dashboard') ?: $isActive(BASE_URL . '/') ?>" href="<?= BASE_URL ?>/dashboard"><span class="app-nav-icon">&#9638;</span><span><strong>Home</strong><small>Overview</small></span></a>
             <?php if (Auth::can('employee.view')): ?>
                 <a class="app-nav-card <?= $isActive('/employees') ?>" href="<?= BASE_URL ?>/employees"><span class="app-nav-icon">&#128100;</span><span><strong>Employees</strong><small>People directory</small></span></a>
             <?php endif; ?>
@@ -96,27 +109,29 @@ if (Auth::check()) {
         </script>
         <?php endif; ?>
         <div class="drawer-user">
-            <span class="avatar"><?= htmlspecialchars($initials) ?></span>
+            <span class="avatar drawer-profile-avatar"><?php if ($headerPhotoUrl): ?><img src="<?= htmlspecialchars($headerPhotoUrl) ?>" alt="<?= htmlspecialchars($displayName) ?>"><?php else: ?><?= htmlspecialchars($initials) ?><?php endif; ?></span>
             <span><strong><?= htmlspecialchars($displayName) ?></strong><small><?= htmlspecialchars(Auth::roleName() ?? '') ?></small></span>
             <form method="post" action="<?= BASE_URL ?>/logout"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Auth::csrfToken()) ?>"><button class="drawer-logout" type="submit" aria-label="Log out"><span aria-hidden="true">&#8594;</span><strong>Log out</strong></button></form>
         </div>
     </aside>
 
     <div class="main-area">
-        <header class="glass-header glass-strong">
+        <header class="glass-header glass-strong<?= $isDashboard ? ' dashboard-header' : '' ?>">
             <div class="header-left">
                 <?php if (!$isDashboard): ?>
                     <button class="menu-toggle app-launcher" id="menu-toggle" aria-label="Open applications" aria-expanded="<?= $openAppDrawer ? 'true' : 'false' ?>"><span class="app-launcher-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>Apps</span></button>
+                <?php endif; ?>
+                <?php if (!$isDashboard): ?>
                     <button class="app-back-button" id="app-back-button" type="button" aria-label="Go back"><span aria-hidden="true">&larr;</span><b>Back</b></button>
                 <?php endif; ?>
                 <div class="header-context"><span class="header-workspace"><span class="header-brand-dot"></span> HRMS Workspace</span><div class="header-title"><?= htmlspecialchars($pageTitle) ?></div></div>
             </div>
 
             <div class="header-search-wrap" id="header-search-wrap">
-                <div class="glass-search header-global-search">
+                <div class="glass-search header-global-search" role="search">
                     <span class="search-leading-icon" aria-hidden="true"></span>
-                    <input type="search" id="global-search" placeholder="Search tasks, accomplishments<?= (Auth::roleName() === ROLE_ADMIN || Auth::isDeveloper()) ? ', employees' : '' ?>..." aria-label="Global search" autocomplete="off" aria-expanded="false" aria-controls="global-search-results">
-                    <span class="search-hint" aria-hidden="true">⌘ K</span>
+                    <input type="search" id="global-search" placeholder="Search across HRMS..." aria-label="Search tasks, accomplishments<?= (Auth::roleName() === ROLE_ADMIN || Auth::isDeveloper()) ? ', and employees' : '' ?>" autocomplete="off" aria-expanded="false" aria-controls="global-search-results">
+                    <span class="search-hint" aria-hidden="true"><b>⌘</b>K</span>
                     <button class="search-clear" id="search-clear" type="button" aria-label="Clear search" hidden>&times;</button>
                     <span class="search-spinner" id="search-spinner" hidden></span>
                 </div>
@@ -147,10 +162,10 @@ if (Auth::check()) {
                     </div>
                 </div>
                 <a class="user-chip" href="<?= BASE_URL ?>/profile" title="Open my profile">
-                    <span class="avatar-sm"><?= htmlspecialchars($initials) ?></span>
+                    <span class="avatar-sm header-profile-avatar"><?php if ($headerPhotoUrl): ?><img src="<?= htmlspecialchars($headerPhotoUrl) ?>" alt="<?= htmlspecialchars($displayName) ?>"><?php else: ?><?= htmlspecialchars($initials) ?><?php endif; ?></span>
                     <span class="user-chip-copy"><strong><?= htmlspecialchars($displayName) ?></strong><small><?= htmlspecialchars(Auth::roleName() ?? '') ?></small></span>
                 </a>
-                <form class="header-logout-form" method="post" action="<?= BASE_URL ?>/logout"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Auth::csrfToken()) ?>"><button type="submit" class="logout-control" aria-label="Log out" title="Log out"><span aria-hidden="true">&#10230;</span><b>Logout</b></button></form>
+                <form class="header-logout-form" method="post" action="<?= BASE_URL ?>/logout"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Auth::csrfToken()) ?>"><button type="submit" class="logout-control" aria-label="Log out" title="Log out"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"/></svg><b>Logout</b></button></form>
             </div>
         </header>
         <main class="content">

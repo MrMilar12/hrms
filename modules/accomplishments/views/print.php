@@ -23,7 +23,7 @@ foreach ($reviews as $review) {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Accomplishment Report — <?= printValue($accomplishment['title']) ?></title>
 <style>
     :root { --ink:#162033; --muted:#687286; --line:#dfe4ec; --blue:#346be7; --violet:#7c5ce5; --paper:#fff; }

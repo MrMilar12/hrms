@@ -3,6 +3,50 @@
 
 class AdminController extends Controller
 {
+    public function analyticsDetails(): void
+    {
+        Auth::requirePermission('report.view');
+        $pdo = Database::getInstance();
+        $type = trim((string) $this->input('type', ''));
+        $employeeBase = "SELECT
+                COALESCE(NULLIF(TRIM(CONCAT_WS(' ', pi.first_name, pi.middle_name, pi.surname, pi.name_extension)), ''), e.employee_number) AS label,
+                e.employee_number AS value,
+                CONCAT_WS(' · ', COALESCE(d.name, 'Unassigned department'), COALESCE(p.title, 'Unassigned position')) AS detail
+            FROM employees e
+            LEFT JOIN pds_personal_info pi ON pi.employee_id = e.id
+            LEFT JOIN departments d ON d.id = e.department_id
+            LEFT JOIN positions p ON p.id = e.position_id";
+        $queries = [
+            'employees' => [$employeeBase . ' ORDER BY label LIMIT 1000', []],
+            'teaching' => [$employeeBase . " INNER JOIN employee_work_profiles wp ON wp.employee_id=e.id WHERE wp.personnel_type='Teaching' ORDER BY label LIMIT 1000", []],
+            'non_teaching' => [$employeeBase . " INNER JOIN employee_work_profiles wp ON wp.employee_id=e.id WHERE wp.personnel_type='Non-Teaching' ORDER BY label LIMIT 1000", []],
+            'active_users' => ["SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),u.username) label, u.username value, CONCAT_WS(' · ',r.name,u.email) detail FROM users u JOIN roles r ON r.id=u.role_id LEFT JOIN pds_personal_info pi ON pi.employee_id=u.employee_id WHERE u.status='active' ORDER BY label LIMIT 1000", []],
+            'open_tasks' => ["SELECT t.title label, ta.status value, COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number,'Unassigned') detail FROM task_assignments ta JOIN tasks t ON t.id=ta.task_id LEFT JOIN employees e ON e.id=ta.employee_id LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id WHERE ta.status NOT IN ('Done','Cancelled') ORDER BY t.title LIMIT 1000", []],
+            'pds' => ["SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) label, CONCAT(ROUND(COALESCE(SUM(pcs.is_complete),0)/14*100),'%') value, e.employee_number detail FROM employees e LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id LEFT JOIN pds_completion_status pcs ON pcs.employee_id=e.id GROUP BY e.id,label,detail ORDER BY COALESCE(SUM(pcs.is_complete),0) DESC LIMIT 1000", []],
+            'review' => ["SELECT a.title label, a.status value, COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) detail FROM accomplishments a JOIN employees e ON e.id=a.employee_id LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id WHERE a.status='For Review' ORDER BY a.submitted_at DESC LIMIT 1000", []],
+            'retirement' => ["SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) label, CONCAT(TIMESTAMPDIFF(YEAR,pi.birth_date,CURDATE()),' years') value, CONCAT_WS(' · ',e.employee_number,DATE_FORMAT(pi.birth_date,'%b %e, %Y')) detail FROM employees e JOIN pds_personal_info pi ON pi.employee_id=e.id WHERE TIMESTAMPDIFF(YEAR,pi.birth_date,CURDATE()) BETWEEN 60 AND 65 ORDER BY pi.birth_date LIMIT 1000", []],
+            'submissions' => ["SELECT a.title label, DATE_FORMAT(a.submitted_at,'%b %e, %Y') value, CONCAT_WS(' · ',COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number),a.status) detail FROM accomplishments a JOIN employees e ON e.id=a.employee_id LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id WHERE a.submitted_at IS NOT NULL ORDER BY a.submitted_at DESC LIMIT 1000", []],
+            'gender' => ["SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) label, COALESCE(pi.sex,'Not specified') value, e.employee_number detail FROM employees e LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id ORDER BY value,label LIMIT 1000", []],
+            'positions' => ["SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) label, p.title value, CONCAT_WS(' · ',e.employee_number,COALESCE(d.name,'Unassigned')) detail FROM employees e JOIN positions p ON p.id=e.position_id LEFT JOIN departments d ON d.id=e.department_id LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id ORDER BY p.title,label LIMIT 1000", []],
+            'departments' => ["SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) label, COALESCE(d.name,'Unassigned') value, e.employee_number detail FROM employees e LEFT JOIN departments d ON d.id=e.department_id LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id ORDER BY value,label LIMIT 1000", []],
+            'tasks' => ["SELECT t.title label, ta.status value, COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number,'Unassigned') detail FROM task_assignments ta JOIN tasks t ON t.id=ta.task_id LEFT JOIN employees e ON e.id=ta.employee_id LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id ORDER BY ta.status,t.title LIMIT 1000", []],
+            'employment' => ["SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) label, e.employment_status value, e.employee_number detail FROM employees e LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id ORDER BY e.employment_status,label LIMIT 1000", []],
+            'personnel' => ["SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) label, COALESCE(wp.personnel_type,'Unclassified') value, e.employee_number detail FROM employees e LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id LEFT JOIN employee_work_profiles wp ON wp.employee_id=e.id ORDER BY value,label LIMIT 1000", []],
+            'age' => ["SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) label, CONCAT(TIMESTAMPDIFF(YEAR,pi.birth_date,CURDATE()),' years') value, DATE_FORMAT(pi.birth_date,'%b %e, %Y') detail FROM employees e JOIN pds_personal_info pi ON pi.employee_id=e.id WHERE pi.birth_date IS NOT NULL ORDER BY pi.birth_date LIMIT 1000", []],
+            'tenure' => ["SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) label,
+                CASE WHEN e.date_hired IS NULL OR e.date_hired > CURDATE() OR (pi.birth_date IS NOT NULL AND e.date_hired < DATE_ADD(pi.birth_date,INTERVAL 15 YEAR)) THEN 'Needs correction' ELSE CONCAT(TIMESTAMPDIFF(YEAR,e.date_hired,CURDATE()),' years') END value,
+                CASE WHEN e.date_hired IS NULL THEN 'Date hired: Not saved' ELSE CONCAT('Date hired: ',DATE_FORMAT(e.date_hired,'%b %e, %Y')) END detail
+                FROM employees e LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id ORDER BY e.date_hired LIMIT 1000", []],
+            'accomplishments' => ["SELECT a.title label, a.status value, COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) detail FROM accomplishments a JOIN employees e ON e.id=a.employee_id LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id ORDER BY a.created_at DESC LIMIT 1000", []],
+        ];
+        if (!isset($queries[$type])) $this->json(['success' => false, 'error' => 'Unknown analytics card.'], 422);
+        [$sql, $params] = $queries[$type];
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+
+        $this->json(['success' => true, 'rows' => $stmt->fetchAll(), 'limited' => $stmt->rowCount() >= 1000]);
+    }
+
     public function activity(): void
     {
         Auth::requirePermission('user.manage');
@@ -33,22 +77,72 @@ class AdminController extends Controller
             $params[] = $filters['date_to'] . ' 23:59:59';
         }
 
-        $sql = "SELECT a.*, u.username, r.name AS role_name,
-                       COALESCE(NULLIF(TRIM(CONCAT(pi.first_name, ' ', pi.surname)), ''), u.username, 'System') AS actor_name
-                FROM audit_logs a
+        $fromSql = " FROM audit_logs a
                 LEFT JOIN users u ON u.id = a.user_id
                 LEFT JOIN roles r ON r.id = u.role_id
                 LEFT JOIN pds_personal_info pi ON pi.employee_id = u.employee_id";
-        if ($where) $sql .= ' WHERE ' . implode(' AND ', $where);
-        $sql .= ' ORDER BY a.created_at DESC, a.id DESC LIMIT 250';
+        $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
+        $countStmt = $pdo->prepare('SELECT COUNT(*)' . $fromSql . $whereSql);
+        $countStmt->execute($params);
+        $total = (int) $countStmt->fetchColumn();
+        $perPage = 50;
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        $page = min(max(1, (int) $this->input('page', 1)), $totalPages);
+        $offset = ($page - 1) * $perPage;
+
+        $sql = "SELECT a.*, u.username, r.name AS role_name,
+                       COALESCE(NULLIF(TRIM(CONCAT(pi.first_name, ' ', pi.surname)), ''), u.username, 'System') AS actor_name
+                " . $fromSql . $whereSql;
+        $sql .= " ORDER BY a.created_at DESC, a.id DESC LIMIT {$perPage} OFFSET {$offset}";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
+
+        $trendRows = $pdo->query(
+            "SELECT DATE(created_at) AS day_key, COUNT(*) AS total
+             FROM audit_logs
+             WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
+             GROUP BY day_key ORDER BY day_key"
+        )->fetchAll();
+        $trendMap = [];
+        foreach ($trendRows as $row) $trendMap[$row['day_key']] = (int) $row['total'];
+        $activityTrend = [];
+        for ($daysAgo = 13; $daysAgo >= 0; $daysAgo--) {
+            $date = (new DateTimeImmutable('today'))->modify("-{$daysAgo} days");
+            $activityTrend[] = [
+                'date' => $date->format('Y-m-d'),
+                'label' => $date->format('M j'),
+                'day' => $date->format('D'),
+                'total' => $trendMap[$date->format('Y-m-d')] ?? 0,
+            ];
+        }
+        $actionBreakdown = $pdo->query(
+            "SELECT action AS label, COUNT(*) AS total
+             FROM audit_logs
+             WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+             GROUP BY action ORDER BY total DESC, action LIMIT 6"
+        )->fetchAll();
+        $reportMetrics = [
+            'thirtyDayTotal' => (int) $pdo->query('SELECT COUNT(*) FROM audit_logs WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)')->fetchColumn(),
+            'uniqueActors' => (int) $pdo->query('SELECT COUNT(DISTINCT user_id) FROM audit_logs WHERE user_id IS NOT NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)')->fetchColumn(),
+            'failedSecurity' => (int) $pdo->query("SELECT COUNT(*) FROM audit_logs WHERE action IN ('login_failed','login_blocked','two_factor_failed','approval_password_failed') AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)")->fetchColumn(),
+        ];
 
         $this->view('admin', 'activity', [
             'pageTitle' => 'Activity Logs',
             'logs' => $stmt->fetchAll(),
             'filters' => $filters,
             'actions' => $pdo->query('SELECT DISTINCT action FROM audit_logs ORDER BY action')->fetchAll(PDO::FETCH_COLUMN),
+            'activityTrend' => $activityTrend,
+            'actionBreakdown' => $actionBreakdown,
+            'reportMetrics' => $reportMetrics,
+            'pagination' => [
+                'page' => $page,
+                'perPage' => $perPage,
+                'total' => $total,
+                'totalPages' => $totalPages,
+                'from' => $total ? $offset + 1 : 0,
+                'to' => min($offset + $perPage, $total),
+            ],
             'summary' => [
                 'today' => (int) $pdo->query('SELECT COUNT(*) FROM audit_logs WHERE created_at >= CURDATE()')->fetchColumn(),
                 'week' => (int) $pdo->query('SELECT COUNT(*) FROM audit_logs WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)')->fetchColumn(),
@@ -112,6 +206,57 @@ class AdminController extends Controller
         $employmentStats = $pdo->query('SELECT employment_status AS label, COUNT(*) AS total FROM employees GROUP BY employment_status ORDER BY total DESC')->fetchAll();
         $taskStats = $pdo->query('SELECT status AS label, COUNT(*) AS total FROM task_assignments GROUP BY status')->fetchAll();
 
+        $ageRows = $pdo->query(
+            "SELECT CASE
+                WHEN pi.birth_date IS NULL THEN 'Not specified'
+                WHEN TIMESTAMPDIFF(YEAR, pi.birth_date, CURDATE()) < 25 THEN 'Under 25'
+                WHEN TIMESTAMPDIFF(YEAR, pi.birth_date, CURDATE()) BETWEEN 25 AND 34 THEN '25–34'
+                WHEN TIMESTAMPDIFF(YEAR, pi.birth_date, CURDATE()) BETWEEN 35 AND 44 THEN '35–44'
+                WHEN TIMESTAMPDIFF(YEAR, pi.birth_date, CURDATE()) BETWEEN 45 AND 54 THEN '45–54'
+                WHEN TIMESTAMPDIFF(YEAR, pi.birth_date, CURDATE()) BETWEEN 55 AND 59 THEN '55–59'
+                WHEN TIMESTAMPDIFF(YEAR, pi.birth_date, CURDATE()) BETWEEN 60 AND 65 THEN '60–65'
+                ELSE '66+'
+             END AS label, COUNT(e.id) AS total
+             FROM employees e LEFT JOIN pds_personal_info pi ON pi.employee_id = e.id
+             GROUP BY label"
+        )->fetchAll();
+        $ageStats = array_fill_keys(['Under 25', '25–34', '35–44', '45–54', '55–59', '60–65', '66+', 'Not specified'], 0);
+        foreach ($ageRows as $row) $ageStats[$row['label']] = (int) $row['total'];
+        $summary['retirementAge'] = $ageStats['60–65'];
+        $retirementEmployees = $pdo->query(
+            "SELECT e.id, e.employee_number, pi.first_name, pi.middle_name, pi.surname, pi.name_extension,
+                    pi.birth_date, TIMESTAMPDIFF(YEAR, pi.birth_date, CURDATE()) AS age,
+                    COALESCE(d.name, 'Unassigned') AS department_name,
+                    COALESCE(p.title, 'Unassigned') AS position_title
+             FROM employees e
+             INNER JOIN pds_personal_info pi ON pi.employee_id = e.id
+             LEFT JOIN departments d ON d.id = e.department_id
+             LEFT JOIN positions p ON p.id = e.position_id
+             WHERE pi.birth_date IS NOT NULL
+               AND TIMESTAMPDIFF(YEAR, pi.birth_date, CURDATE()) BETWEEN 60 AND 65
+             ORDER BY age DESC, pi.surname, pi.first_name"
+        )->fetchAll();
+
+        $tenureRows = $pdo->query(
+            "SELECT CASE
+                WHEN date_hired IS NULL THEN 'Not specified'
+                WHEN date_hired > CURDATE() THEN 'Needs correction'
+                WHEN pi.birth_date IS NOT NULL AND date_hired < DATE_ADD(pi.birth_date, INTERVAL 15 YEAR) THEN 'Needs correction'
+                WHEN TIMESTAMPDIFF(YEAR, date_hired, CURDATE()) < 1 THEN 'Under 1 year'
+                WHEN TIMESTAMPDIFF(YEAR, date_hired, CURDATE()) BETWEEN 1 AND 4 THEN '1–4 years'
+                WHEN TIMESTAMPDIFF(YEAR, date_hired, CURDATE()) BETWEEN 5 AND 9 THEN '5–9 years'
+                WHEN TIMESTAMPDIFF(YEAR, date_hired, CURDATE()) BETWEEN 10 AND 19 THEN '10–19 years'
+                ELSE '20+ years'
+             END AS label, COUNT(*) AS total
+             FROM employees e LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id GROUP BY label"
+        )->fetchAll();
+        $tenureStats = array_fill_keys(['Under 1 year', '1–4 years', '5–9 years', '10–19 years', '20+ years', 'Not specified', 'Needs correction'], 0);
+        foreach ($tenureRows as $row) $tenureStats[$row['label']] = (int) $row['total'];
+
+        $accomplishmentRows = $pdo->query('SELECT status AS label, COUNT(*) AS total FROM accomplishments GROUP BY status')->fetchAll();
+        $accomplishmentStats = array_fill_keys(['Draft', 'For Review', 'Approved', 'Returned'], 0);
+        foreach ($accomplishmentRows as $row) $accomplishmentStats[$row['label']] = (int) $row['total'];
+
         $submissionRows = $pdo->query(
             "SELECT DATE_FORMAT(submitted_at, '%Y-%m') AS month_key, COUNT(*) AS total
              FROM accomplishments
@@ -139,6 +284,10 @@ class AdminController extends Controller
             'positionStats' => $positionStats,
             'employmentStats' => $employmentStats,
             'taskStats' => $taskStats,
+            'ageStats' => $ageStats,
+            'retirementEmployees' => $retirementEmployees,
+            'tenureStats' => $tenureStats,
+            'accomplishmentStats' => $accomplishmentStats,
             'monthlySubmissions' => $monthlySubmissions,
         ]);
     }

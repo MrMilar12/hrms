@@ -7,60 +7,75 @@
 require MODULES_PATH . '/shared/views/header.php';
 $isEditing = !empty($accomplishment);
 ?>
-<div class="glass-card">
-    <a href="<?= BASE_URL ?>/accomplishments" style="font-size:0.85rem; color:var(--text-muted);">&larr; Back</a>
-    <h2 style="margin:0.5rem 0 0.15rem;"><?= $isEditing ? 'Edit Returned Accomplishment' : 'Create Accomplishment' ?></h2>
-    <p style="margin:0; color:var(--text-muted); font-size:0.85rem;"><?= $isEditing ? 'Update the details and evidence requested by the approving authority.' : 'Document a completed activity.' ?></p>
-</div>
+<div class="accomplishment-form-page">
+<section class="accomplishment-form-hero glass-card">
+    <a class="accomplishment-back" href="<?= BASE_URL ?>/accomplishments"><span aria-hidden="true">&larr;</span> Accomplishments</a>
+    <div class="accomplishment-hero-main"><span class="accomplishment-hero-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.3 5.9.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.2 5.9-.8L12 3Z"/></svg></span><div><span class="launcher-eyebrow"><?= $isEditing ? 'Revision workspace' : 'New submission' ?></span><h1><?= $isEditing ? 'Improve your accomplishment' : 'Record an accomplishment' ?></h1><p><?= $isEditing ? 'Update the requested details and supporting evidence before resubmitting.' : 'Capture the completed work, its outcome, and supporting photographs.' ?></p></div></div>
+    <div class="accomplishment-hero-note"><strong>3 simple steps</strong><span>Details · Narrative · Evidence</span></div>
+</section>
 
-<div class="glass-card">
+<section class="glass-card accomplishment-editor">
     <form id="accomplishment-form">
+        <section class="accomplishment-form-section accomplishment-details-section">
+        <header class="accomplishment-section-head"><span>1</span><div><h2>Accomplishment details</h2><p>Identify the activity and when it was completed.</p></div></header>
+        <div class="accomplishment-section-body accomplishment-details-grid">
         <?php if ($canCreateForOthers): ?>
-        <div class="form-group">
-            <label>Employee</label>
-            <select name="employee_id" id="field-employee" required>
+        <div class="form-group accomplishment-detail-control detail-control-wide">
+            <label for="field-employee">Employee <b class="field-required" aria-label="required">*</b></label>
+            <select name="employee_id" id="field-employee" required data-searchable-select data-search-placeholder="Search employee name..." data-search-empty="No employee found">
                 <option value="">Select employee...</option>
                 <?php foreach ($employees as $e): ?><option value="<?= (int) $e['id'] ?>"><?= htmlspecialchars($e['employee_name']) ?></option><?php endforeach; ?>
             </select>
+            <small class="field-help">Select the employee who completed this accomplishment.</small>
         </div>
         <?php endif; ?>
 
-        <div class="form-group">
-            <label>Accomplishment Title</label>
-            <input name="title" id="field-title" value="<?= htmlspecialchars($accomplishment['title'] ?? '') ?>" placeholder="Enter accomplishment title..." required>
+        <div class="form-group accomplishment-detail-control detail-control-wide detail-title-control">
+            <label for="field-title">Accomplishment title <b class="field-required" aria-label="required">*</b></label>
+            <div class="accomplishment-title-input"><input name="title" id="field-title" value="<?= htmlspecialchars($accomplishment['title'] ?? '') ?>" placeholder="Example: Conducted a division training workshop" required maxlength="255"></div>
+            <small class="field-help">Use a short, specific title. Add the full explanation in the Narrative section.</small>
         </div>
 
-        <div class="form-row">
-            <div class="form-group">
-                <label>Date of Accomplishment</label>
-                <input type="date" name="accomplishment_date" id="field-date" value="<?= htmlspecialchars($accomplishment['accomplishment_date'] ?? date('Y-m-d')) ?>" required>
+            <div class="form-group accomplishment-detail-control accomplishment-date-field">
+                <label for="field-date">Date completed <b class="field-required" aria-label="required">*</b></label>
+                <div class="accomplishment-date-wrap"><input type="date" name="accomplishment_date" id="field-date" value="<?= htmlspecialchars($accomplishment['accomplishment_date'] ?? date('Y-m-d')) ?>" required></div>
+                <small class="field-help">Choose when the activity was completed.</small>
             </div>
-            <div class="form-group">
-                <label>Related Task (optional)</label>
+            <div class="form-group accomplishment-detail-control accomplishment-task-field">
+                <label for="field-task">Related task <em class="field-optional-inline">Optional</em></label>
                 <select name="task_id" id="field-task">
                     <option value="">Select task...</option>
                     <?php foreach ($tasks as $t): ?><option value="<?= (int) $t['id'] ?>"<?= $canCreateForOthers ? ' data-employee-id="' . (int) $t['employee_id'] . '" hidden disabled' : '' ?>><?= htmlspecialchars($t['title']) ?><?= $canCreateForOthers ? ' - ' . htmlspecialchars($t['employee_number']) : '' ?></option><?php endforeach; ?>
                 </select>
+                <small class="field-help">Connect this accomplishment to an assigned task.</small>
             </div>
         </div>
+        </section>
 
+        <section class="accomplishment-form-section">
+        <header class="accomplishment-section-head"><span>2</span><div><h2>Result and narrative</h2><p>Describe the work performed and the outcome achieved.</p></div></header>
+        <div class="accomplishment-section-body">
         <div class="form-group">
-            <label>Description</label>
-            <div style="position:relative;">
+            <label for="field-description">Description <span class="field-optional">Optional</span></label>
+            <div class="accomplishment-description-wrap">
                 <textarea name="description" id="field-description" rows="8" maxlength="2000"
                     placeholder="Describe what you accomplished, the activities performed, and the result or output."
-                    style="min-height:220px; resize:vertical;"><?= htmlspecialchars($accomplishment['description'] ?? '') ?></textarea>
-                <span id="char-counter" style="position:absolute; right:0.75rem; bottom:0.6rem; font-size:0.75rem; color:var(--text-muted);"><?= mb_strlen($accomplishment['description'] ?? '') ?> / 2000</span>
+                    ><?= htmlspecialchars($accomplishment['description'] ?? '') ?></textarea>
+                <span id="char-counter" class="accomplishment-char-counter"><?= mb_strlen($accomplishment['description'] ?? '') ?> / 2000</span>
             </div>
         </div>
+        </div>
+        </section>
 
+        <section class="accomplishment-form-section accomplishment-evidence-section">
+        <header class="accomplishment-section-head"><span>3</span><div><h2>Photo evidence</h2><p>Add clear supporting photos. Each image is automatically optimized to 500 KB or less.</p></div></header>
+        <div class="accomplishment-section-body">
         <div class="form-group">
-            <label>Photos</label>
-            <div id="dropzone" class="glass-light" style="border:2px dashed var(--glass-border-hover); border-radius:var(--radius-medium); padding:2rem; text-align:center; cursor:pointer; transition:border-color var(--transition), background var(--transition);">
-                <div style="font-size:1.8rem; margin-bottom:0.4rem;">&#10133;</div>
-                <div style="font-weight:600; margin-bottom:0.2rem;">Add accomplishment photos</div>
-                <div style="font-size:0.85rem; color:var(--text-muted);">Drag &amp; drop images here, or <span style="color:var(--accent-blue); font-weight:600;">Browse Files</span></div>
-                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem;">JPG &middot; PNG &middot; WEBP &middot; Photos are optimized to 500 KB or less</div>
+            <div id="dropzone" class="accomplishment-dropzone glass-light">
+                <span class="accomplishment-dropzone-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M5 14v5h14v-5"/></svg></span>
+                <strong>Add supporting photos</strong>
+                <p>Drag and drop images here or <span>browse files</span></p>
+                <small>JPG, PNG, or WEBP · Up to 30 MB before automatic optimization</small>
                 <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.webp" multiple hidden>
             </div>
 
@@ -76,18 +91,22 @@ $isEditing = !empty($accomplishment);
             </div>
             <div id="photo-grid" class="attachment-grid" style="margin-top:1rem;"></div>
         </div>
+        </div>
+        </section>
 
         <div class="accomplishment-progress" id="submission-progress" hidden aria-live="polite">
             <div class="accomplishment-progress-head"><span><strong id="progress-title">Preparing submission</strong><small id="progress-detail">Saving accomplishment details...</small></span><b id="progress-percent">0%</b></div>
             <div class="accomplishment-progress-track" role="progressbar" aria-label="Submission progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-fill"></span></div>
         </div>
-        <div id="form-status" style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.75rem;"></div>
+        <div id="form-status" class="accomplishment-form-status"></div>
 
-        <div style="display:flex; gap:0.6rem; justify-content:flex-end;">
+        <div class="accomplishment-form-actions">
+            <span><strong><?= $isEditing ? 'Ready to update?' : 'Not ready yet?' ?></strong><small><?= $isEditing ? 'Save your changes or resubmit for approval.' : 'Save a draft and return at any time.' ?></small></span>
             <button type="button" id="btn-save-draft" class="btn btn-secondary"><?= $isEditing ? 'Save Changes' : 'Save Draft' ?></button>
             <button type="button" id="btn-submit" class="btn btn-primary"><?= $isEditing ? 'Resubmit for Review' : 'Submit' ?></button>
         </div>
     </form>
+</section>
 </div>
 
 <script>
@@ -119,7 +138,7 @@ dropzone.addEventListener('click', () => fileInput.click());
 ['dragover', 'dragleave', 'drop'].forEach((evt) => {
     dropzone.addEventListener(evt, (e) => {
         e.preventDefault();
-        dropzone.style.borderColor = evt === 'dragover' ? 'var(--accent-blue)' : 'var(--glass-border-hover)';
+        dropzone.classList.toggle('is-dragging', evt === 'dragover');
     });
 });
 dropzone.addEventListener('drop', (e) => addFiles(e.dataTransfer.files));
