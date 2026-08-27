@@ -367,17 +367,23 @@ class AdminController extends Controller
         $pdo = Database::getInstance();
 
         $departments = $pdo->query(
-            'SELECT d.id, d.name, p.name AS parent_name,
+            'SELECT d.id, d.name, d.parent_department_id, p.name AS parent_name,
                     (SELECT COUNT(*) FROM employees e WHERE e.department_id = d.id) AS employee_count
              FROM departments d
              LEFT JOIN departments p ON p.id = d.parent_department_id
              ORDER BY d.name'
         )->fetchAll();
 
+        // Keep the parent selector independent from the table query so it
+        // always receives the complete list of departments.
+        $allDepartments = $pdo->query(
+            'SELECT id, name FROM departments ORDER BY name'
+        )->fetchAll();
+
         $this->view('admin', 'departments', [
             'pageTitle' => 'Manage Departments',
             'departments' => $departments,
-            'allDepartments' => $departments,
+            'allDepartments' => $allDepartments,
         ]);
     }
 

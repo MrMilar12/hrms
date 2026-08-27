@@ -24,14 +24,18 @@ require MODULES_PATH . '/shared/views/header.php';
 <div class="glass-card">
     <h3 style="margin-top:0;">Add Department</h3>
     <form id="create-department-form">
-        <div class="form-row">
-            <div class="form-group"><label>Name</label><input name="name" required></div>
-            <div class="form-group"><label>Parent Department (optional)</label>
-                <select name="parent_department_id">
-                    <option value="">--</option>
-                    <?php foreach ($allDepartments as $d): ?><option value="<?= (int) $d['id'] ?>"><?= htmlspecialchars($d['name']) ?></option><?php endforeach; ?>
-                </select>
-            </div>
+        <div class="form-group">
+            <label for="department-name">Department Name</label>
+            <input id="department-name" name="name" required>
+        </div>
+        <div class="form-group">
+            <label for="parent-department">Parent Department <small>(optional)</small></label>
+            <select id="parent-department" name="parent_department_id">
+                <option value="">No parent department</option>
+                <?php foreach ($allDepartments as $d): ?>
+                    <option value="<?= (int) $d['id'] ?>"><?= htmlspecialchars($d['name']) ?></option>
+                <?php endforeach; ?>
+            </select>
         </div>
         <button type="submit" class="btn btn-primary">Add Department</button>
     </form>

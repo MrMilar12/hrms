@@ -9,12 +9,17 @@ require MODULES_PATH . '/shared/views/header.php';
 ?>
 <div class="glass-card account-directory">
     <div class="account-directory-header">
-        <div class="account-directory-title"><span class="launcher-eyebrow">Identity and access</span><h2>Manage Accounts</h2><p>Employee identity, access role, security, and account activity.</p></div>
+        <div class="account-directory-title">
+            <div class="account-title-mark" aria-hidden="true">&#128100;</div>
+            <div><span class="launcher-eyebrow">Administration <span class="account-title-divider">/</span> Identity and access</span><h2>Manage Accounts</h2><p>Review employee access, update account status, and keep login security up to date.</p></div>
+        </div>
         <div class="account-directory-tools">
             <span class="account-total"><?= number_format($total) ?> <small>accounts</small></span>
             <div class="glass-search account-search"><span aria-hidden="true">&#128269;</span><input type="search" id="account-search" placeholder="Search name, role, or email" aria-label="Search accounts"></div>
+            <a class="btn btn-primary account-add-button" href="<?= BASE_URL ?>/employees/create">+ Add Account</a>
         </div>
     </div>
+    <div class="account-directory-note"><span class="account-note-icon">&#9432;</span><span><strong>Account management</strong> New accounts are created together with employees from the Employees page. Use the controls below to manage existing access.</span></div>
     <div class="account-table-scroll" role="region" aria-label="Account directory" tabindex="0">
     <table>
         <thead><tr><th>Account Holder</th><th>Username</th><th>Email</th><th>Role</th><th>Employment</th><th>Status</th><th>Security</th><th>Account Activity</th><th>Actions</th></tr></thead>
@@ -64,7 +69,6 @@ require MODULES_PATH . '/shared/views/header.php';
             <?php if ($page < $totalPages): ?><a class="btn btn-secondary" href="<?= BASE_URL ?>/admin/users?page=<?= $page + 1 ?>">Next</a><?php endif; ?>
         </nav>
     <?php endif; ?>
-    <p style="color:var(--text-muted); margin:1rem 0 0;">New accounts are created together with employees from the Employees page.</p>
 </div>
 
 <script>
