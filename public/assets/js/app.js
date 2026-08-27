@@ -55,33 +55,66 @@ document.addEventListener('DOMContentLoaded', () => {
         region.classList.add('record-is-locked');
         region.querySelectorAll('input, select, textarea, button').forEach(control => { control.disabled = true; });
     });
-    document.querySelectorAll('[data-record-unlock-form]').forEach(form => form.addEventListener('submit', async event => {
-        event.preventDefault();
-        const banner = form.closest('[data-record-lock-banner]');
-        const button = form.querySelector('[type="submit"]');
-        button.disabled = true;
-        const formData = new FormData(form);
-        formData.append('scope', banner.dataset.scope);
-        try {
-            const result = await HRIS.postForm(`${window.BASE_URL}/records/unlock`, formData);
-            HRIS.flash(result.message || result.error, result.success ? 'success' : 'error');
-            if (result.success) window.setTimeout(() => window.location.reload(), 350);
-        } catch (_) {
-            HRIS.flash('Unable to verify your password.', 'error');
-        } finally { button.disabled = false; }
+    document.querySelectorAll('[data-record-unlock-action]').forEach(button => button.addEventListener('click', async () => {
+        const banner = button.closest('[data-record-lock-banner]');
+        const label = banner.dataset.recordLabel || 'record';
+        if (!window.Swal) {
+            HRIS.flash('The secure dialog could not load. Refresh the page and try again.', 'error');
+            return;
+        }
+        const modal = await Swal.fire({
+            title: 'Unlock editing',
+            html: `<p class="record-swal-lead">Confirm your identity to edit your ${label}.</p><div class="record-swal-security"><span>3 hours</span> Editing access automatically expires</div>`,
+            icon: 'info', input: 'password', inputLabel: 'Current password', inputPlaceholder: 'Enter your current password',
+            inputAttributes: { autocomplete: 'current-password', autocapitalize: 'off', spellcheck: 'false' },
+            showCancelButton: true, confirmButtonText: 'Unlock editing', cancelButtonText: 'Keep locked',
+            confirmButtonColor: '#2563eb', reverseButtons: true, focusConfirm: false, showLoaderOnConfirm: true,
+            allowOutsideClick: () => !Swal.isLoading(),
+            customClass: { popup: 'record-swal-popup', input: 'record-swal-input', confirmButton: 'record-swal-confirm', cancelButton: 'record-swal-cancel' },
+            inputValidator: value => !value ? 'Enter your current password.' : undefined,
+            preConfirm: async password => {
+                const formData = new FormData();
+                formData.append('scope', banner.dataset.scope);
+                formData.append('password', password);
+                try {
+                    const result = await HRIS.postForm(`${window.BASE_URL}/records/unlock`, formData);
+                    if (!result.success) { Swal.showValidationMessage(result.error || 'The password could not be verified.'); return false; }
+                    return result;
+                } catch (_) { Swal.showValidationMessage('Unable to connect. Please try again.'); return false; }
+            },
+        });
+        if (modal.isConfirmed) {
+            await Swal.fire({ icon: 'success', title: 'Editing unlocked', text: modal.value.message || 'You can update this information for 3 hours.', confirmButtonText: 'Continue', confirmButtonColor: '#16a34a', timer: 1800, timerProgressBar: true, customClass: { popup: 'record-swal-popup' } });
+            window.location.reload();
+        }
     }));
     document.querySelectorAll('[data-record-lock-action]').forEach(button => button.addEventListener('click', async () => {
         const banner = button.closest('[data-record-lock-banner]');
+        const label = banner.dataset.recordLabel || 'record';
+        if (!window.Swal) {
+            HRIS.flash('The secure dialog could not load. Refresh the page and try again.', 'error');
+            return;
+        }
+        const confirmation = await Swal.fire({
+            icon: 'question', title: 'Lock editing now?',
+            html: `<p class="record-swal-lead">Your saved changes will remain. Lock your ${label} to prevent further edits.</p>`,
+            showCancelButton: true, confirmButtonText: 'Yes, lock it', cancelButtonText: 'Continue editing',
+            confirmButtonColor: '#d97706', reverseButtons: true,
+            customClass: { popup: 'record-swal-popup', confirmButton: 'record-swal-confirm', cancelButton: 'record-swal-cancel' },
+        });
+        if (!confirmation.isConfirmed) return;
         button.disabled = true;
+        Swal.fire({ title: 'Securing your data', text: 'Locking editing access…', allowOutsideClick: false, showConfirmButton: false, customClass: { popup: 'record-swal-popup' }, didOpen: () => Swal.showLoading() });
+        const formData = new FormData();
+        formData.append('scope', banner.dataset.scope);
         try {
-            const formData = new FormData();
-            formData.append('scope', banner.dataset.scope);
             const result = await HRIS.postForm(`${window.BASE_URL}/records/lock`, formData);
-            HRIS.flash(result.message || result.error, result.success ? 'success' : 'error');
-            if (result.success) window.setTimeout(() => window.location.reload(), 300);
-        } catch (_) {
-            HRIS.flash('Unable to lock the record.', 'error');
+            if (!result.success) throw new Error(result.error || 'Unable to lock the record.');
+            await Swal.fire({ icon: 'success', title: 'Editing locked', text: result.message || `Your ${label} is protected again.`, confirmButtonColor: '#2563eb', timer: 1600, timerProgressBar: true, customClass: { popup: 'record-swal-popup' } });
+            window.location.reload();
+        } catch (error) {
             button.disabled = false;
+            Swal.fire({ icon: 'error', title: 'Could not lock editing', text: error.message || 'Please try again.', confirmButtonColor: '#2563eb', customClass: { popup: 'record-swal-popup' } });
         }
     }));
 
@@ -436,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (select.dataset.searchReady === 'true') return;
         select.dataset.searchReady = 'true';
 
-        const options = [...select.options].map(option => ({
+        const getOptions = () => [...select.options].map(option => ({
             value: option.value,
             label: option.textContent.trim(),
             disabled: option.disabled,
@@ -448,6 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const listId = `searchable-select-${selectIndex}-${Math.random().toString(36).slice(2, 7)}`;
         input.type = 'search';
         input.className = 'searchable-select-input';
+        input.disabled = select.disabled;
         input.placeholder = select.dataset.searchPlaceholder || 'Type to search...';
         input.autocomplete = 'off';
         input.setAttribute('role', 'combobox');
@@ -489,12 +523,12 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const render = () => {
             const query = input.value.trim().toLowerCase();
-            visibleOptions = options.filter(option => option.value && !option.disabled && (!query || option.label.toLowerCase().includes(query))).slice(0, 60);
+            visibleOptions = getOptions().filter(option => option.value && !option.disabled && (!query || option.label.toLowerCase().includes(query))).slice(0, 60);
             list.replaceChildren();
             if (!visibleOptions.length) {
                 const empty = document.createElement('div');
                 empty.className = 'searchable-select-empty';
-                empty.textContent = 'No matching position found';
+                empty.textContent = select.dataset.searchEmpty || 'No matching option found';
                 list.appendChild(empty);
             } else {
                 visibleOptions.forEach((option, index) => {
@@ -533,6 +567,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.value = current?.value ? current.textContent.trim() : '';
             }, 100);
         });
+        select.addEventListener('change', () => {
+            const current = select.options[select.selectedIndex];
+            input.value = current?.value ? current.textContent.trim() : '';
+        });
     });
 
     // ---- Animate progress bars in on load ----
@@ -555,17 +593,86 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Citizenship choice controls the follow-up fields required by CS Form 212.
+    document.querySelectorAll('[data-citizenship-select]').forEach(select => {
+        const form = select.closest('form');
+        const details = form?.querySelector('[data-dual-citizenship-fields]');
+        const basis = details?.querySelector('[name="dual_citizenship_type"]');
+        const country = details?.querySelector('[name="dual_citizenship_country"]');
+        if (!details) return;
+        const syncCitizenship = () => {
+            const isDual = select.value === 'DUAL CITIZENSHIP';
+            details.hidden = !isDual;
+            if (basis) basis.required = isDual;
+            if (country) country.required = isDual;
+            if (!isDual && select.dataset.citizenshipReady === 'true') {
+                if (basis) basis.value = '';
+                if (country) country.value = '';
+            }
+            select.dataset.citizenshipReady = 'true';
+        };
+        select.addEventListener('change', syncCitizenship);
+        syncCitizenship();
+    });
+
     // Generic AJAX section-save forms: <form class="ajax-section-form" data-endpoint="...">
+    const showPdsSaveError = async (form, result = {}) => {
+        const escapeText = value => {
+            const node = document.createElement('span');
+            node.textContent = String(value || '');
+            return node.innerHTML;
+        };
+        const fieldLabel = result.fieldLabel || 'This section';
+        const message = result.error || 'The section could not be saved.';
+        const suggestion = result.suggestion || 'Review the fields and try again.';
+        if (window.Swal) {
+            await Swal.fire({
+                icon: 'error',
+                title: 'Section not saved',
+                html: `<div class="pds-error-summary"><span class="pds-error-field">${escapeText(fieldLabel)}</span><p>${escapeText(message)}</p><div class="pds-error-suggestion"><strong>Suggestion</strong><span>${escapeText(suggestion)}</span></div></div>`,
+                confirmButtonText: 'Review field',
+                confirmButtonColor: '#dc2626',
+                customClass: { popup: 'record-swal-popup pds-error-popup' },
+            });
+        } else {
+            HRIS.flash(`${fieldLabel}: ${message} ${suggestion}`, 'error');
+        }
+        if (result.field) {
+            const field = [...form.querySelectorAll('[name], [data-field]')].find(control =>
+                control.name === result.field || control.name?.endsWith(`[${result.field}]`) || control.dataset.field === result.field
+            );
+            if (field) {
+                const target = field.closest('.searchable-select')?.querySelector('.searchable-select-input') || field;
+                target.classList.add('pds-field-error');
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.focus({ preventScroll: true });
+                target.addEventListener('input', () => target.classList.remove('pds-field-error'), { once: true });
+                target.addEventListener('change', () => target.classList.remove('pds-field-error'), { once: true });
+            }
+        }
+    };
+    window.showPdsSaveError = showPdsSaveError;
     document.querySelectorAll('form.ajax-section-form').forEach((form) => {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const formData = new FormData(form);
-            const result = await HRIS.postForm(form.dataset.endpoint, formData);
-            if (result.success) {
-                HRIS.updatePdsCompletion(result.completionPercent);
-                HRIS.flash(result.message || 'Saved.', 'success');
-            } else {
-                HRIS.flash(result.error || 'Save failed.', 'error');
+            const button = form.querySelector('[type="submit"]');
+            form.querySelectorAll('input:not([type="date"]):not([type="number"]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea').forEach(field => {
+                field.value = field.value.toLocaleUpperCase();
+            });
+            if (button) button.disabled = true;
+            try {
+                const formData = new FormData(form);
+                const result = await HRIS.postForm(form.dataset.endpoint, formData);
+                if (result.success) {
+                    HRIS.updatePdsCompletion(result.completionPercent);
+                    HRIS.flash(result.message || 'Saved.', 'success');
+                } else {
+                    await showPdsSaveError(form, result);
+                }
+            } catch (_) {
+                await showPdsSaveError(form, { error: 'The server response could not be read.', suggestion: 'Check your connection, refresh the page, and submit the section again.' });
+            } finally {
+                if (button) button.disabled = false;
             }
         });
     });

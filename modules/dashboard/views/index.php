@@ -24,27 +24,27 @@ $myAccomplishmentTotal = array_sum($myAccomplishmentCounts);
     <div class="launcher-grid">
         <?php if ($isAdmin): ?>
             <a class="launcher-app launcher-app-blue" href="<?= BASE_URL ?>/employees">
-                <span class="launcher-app-icon" aria-hidden="true">&#128101;</span>
+                <span class="launcher-app-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M17 11l2 2 4-4M19 15v6"/></svg></span>
                 <span class="launcher-app-copy"><strong>Employees</strong><small>Manage employee records and 201 files</small></span>
                 <span class="launcher-app-arrow" aria-hidden="true">&rarr;</span>
             </a>
         <?php endif; ?>
 
         <a class="launcher-app launcher-app-violet" href="<?= BASE_URL ?>/profile">
-            <span class="launcher-app-icon" aria-hidden="true">&#128100;</span>
+            <span class="launcher-app-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
             <span class="launcher-app-copy"><strong>My Profile</strong><small>Update your information and manage your PDS</small></span>
             <span class="launcher-app-meta"><?= (int) $pdsPercent ?>%</span><span class="launcher-app-arrow" aria-hidden="true">&rarr;</span>
         </a>
 
         <a class="launcher-app launcher-app-teal" href="<?= BASE_URL ?>/tasks">
-            <span class="launcher-app-icon" aria-hidden="true">&#10003;</span>
+            <span class="launcher-app-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8 12 2.5 2.5L16 9"/></svg></span>
             <span class="launcher-app-copy"><strong>Tasks</strong><small>Open your work board and assignments</small></span>
             <span class="launcher-app-meta"><?= number_format($myTaskTotal) ?></span><span class="launcher-app-arrow" aria-hidden="true">&rarr;</span>
         </a>
 
         <?php if (Auth::can('accomplishment.create')): ?>
             <a class="launcher-app launcher-app-orange" href="<?= BASE_URL ?>/accomplishments">
-                <span class="launcher-app-icon" aria-hidden="true">&#10022;</span>
+                <span class="launcher-app-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.3 5.9.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.2 5.9-.8L12 3Z"/></svg></span>
                 <span class="launcher-app-copy"><strong>Accomplishments</strong><small>Document evidence and completed work</small></span>
                 <span class="launcher-app-meta"><?= number_format($myAccomplishmentTotal) ?></span><span class="launcher-app-arrow" aria-hidden="true">&rarr;</span>
             </a>
@@ -52,7 +52,7 @@ $myAccomplishmentTotal = array_sum($myAccomplishmentCounts);
 
         <?php if (Auth::can('report.view')): ?>
             <a class="launcher-app launcher-app-pink" href="<?= BASE_URL ?>/reports/pds-completion">
-                <span class="launcher-app-icon" aria-hidden="true">&#9635;</span>
+                <span class="launcher-app-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>
                 <span class="launcher-app-copy"><strong>Reports</strong><small>Review team progress and completion</small></span>
                 <span class="launcher-app-arrow" aria-hidden="true">&rarr;</span>
             </a>
@@ -60,7 +60,7 @@ $myAccomplishmentTotal = array_sum($myAccomplishmentCounts);
 
         <?php if (Auth::can('user.manage')): ?>
             <a class="launcher-app launcher-app-slate" href="<?= BASE_URL ?>/admin/dashboard">
-                <span class="launcher-app-icon" aria-hidden="true">&#9632;</span>
+                <span class="launcher-app-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg></span>
                 <span class="launcher-app-copy"><strong>Admin Analytics</strong><small>Statistics, trends and workforce insights</small></span>
                 <span class="launcher-app-arrow" aria-hidden="true">&rarr;</span>
             </a>

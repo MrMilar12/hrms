@@ -34,7 +34,7 @@ if (Auth::check()) {
 (function(){try{var s=JSON.parse(localStorage.getItem('hrms-appearance')||'{}');var m=s.mode||'system';var d=m==='dark'||(m==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';if(/^#[0-9a-f]{6}$/i.test(s.primary||''))document.documentElement.style.setProperty('--accent-blue',s.primary);if(/^#[0-9a-f]{6}$/i.test(s.secondary||''))document.documentElement.style.setProperty('--accent-violet',s.secondary);document.documentElement.style.setProperty('--accent-primary','var(--accent-blue)');}catch(e){}})();
 </script>
 <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/glass.css?v=<?= rawurlencode(CSS_ASSET_VERSION) ?>">
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="<?= BASE_URL ?>/assets/js/sweetalert2.all.min.js?v=11"></script>
 <script>window.BASE_URL = '<?= BASE_URL ?>'; window.OPEN_APP_DRAWER = <?= $openAppDrawer ? 'true' : 'false' ?>;</script>
 </head>
 <body>

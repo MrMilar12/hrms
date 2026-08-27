@@ -60,7 +60,7 @@ $isEditing = !empty($accomplishment);
                 <div style="font-size:1.8rem; margin-bottom:0.4rem;">&#10133;</div>
                 <div style="font-weight:600; margin-bottom:0.2rem;">Add accomplishment photos</div>
                 <div style="font-size:0.85rem; color:var(--text-muted);">Drag &amp; drop images here, or <span style="color:var(--accent-blue); font-weight:600;">Browse Files</span></div>
-                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem;">JPG &middot; JPEG &middot; PNG &middot; WEBP &middot; Maximum 5 MB</div>
+                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem;">JPG &middot; PNG &middot; WEBP &middot; Photos are optimized to 500 KB or less</div>
                 <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.webp" multiple hidden>
             </div>
 
@@ -77,6 +77,10 @@ $isEditing = !empty($accomplishment);
             <div id="photo-grid" class="attachment-grid" style="margin-top:1rem;"></div>
         </div>
 
+        <div class="accomplishment-progress" id="submission-progress" hidden aria-live="polite">
+            <div class="accomplishment-progress-head"><span><strong id="progress-title">Preparing submission</strong><small id="progress-detail">Saving accomplishment details...</small></span><b id="progress-percent">0%</b></div>
+            <div class="accomplishment-progress-track" role="progressbar" aria-label="Submission progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-fill"></span></div>
+        </div>
         <div id="form-status" style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.75rem;"></div>
 
         <div style="display:flex; gap:0.6rem; justify-content:flex-end;">
@@ -102,6 +106,11 @@ const employeeField = document.getElementById('field-employee');
 const taskField = document.getElementById('field-task');
 const saveButton = document.getElementById('btn-save-draft');
 const submitButton = document.getElementById('btn-submit');
+const progressBox = document.getElementById('submission-progress');
+const progressTitle = document.getElementById('progress-title');
+const progressDetail = document.getElementById('progress-detail');
+const progressPercent = document.getElementById('progress-percent');
+const progressFill = document.getElementById('progress-fill');
 <?php if ($isEditing && !empty($accomplishment['task_id'])): ?>
 document.getElementById('field-task').value = <?= json_encode((string) $accomplishment['task_id']) ?>;
 <?php endif; ?>
@@ -130,27 +139,67 @@ function filterTasksForEmployee() {
 employeeField?.addEventListener('change', filterTasksForEmployee);
 filterTasksForEmployee();
 
-function addFiles(fileList) {
-    [...fileList].forEach((file) => {
+const formatBytes = bytes => bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+const escapeHtml = value => String(value || '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
+const canvasBlob = (canvas, quality) => new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+const loadBrowserImage = file => new Promise((resolve, reject) => {
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+    image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read image')); };
+    image.src = url;
+});
+async function compressPhoto(file) {
+    const image = await loadBrowserImage(file);
+    const initialScale = Math.min(1, 2200 / Math.max(image.naturalWidth, image.naturalHeight));
+    let latest = file;
+    for (let attempt = 0; attempt < 18; attempt++) {
+        const scale = initialScale * Math.pow(.86, Math.floor(attempt / 3));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const context = canvas.getContext('2d', { alpha: false });
+        context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const blob = await canvasBlob(canvas, [.84, .7, .56][attempt % 3]);
+        if (!blob) throw new Error('Image compression failed');
+        latest = new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg', lastModified: Date.now() });
+        if (latest.size <= 500 * 1024) break;
+    }
+    return latest;
+}
+
+async function addFiles(fileList) {
+    const files = [...fileList];
+    fileInput.value = '';
+    for (const file of files) {
         if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
             HRIS.flash(`${file.name} is not a supported image.`, 'error');
-            return;
+            continue;
         }
-        if (file.size > 5 * 1024 * 1024) {
-            HRIS.flash(`${file.name} exceeds the 5 MB limit.`, 'error');
-            return;
+        if (file.size > 30 * 1024 * 1024) {
+            HRIS.flash(`${file.name} exceeds the 30 MB source-image limit.`, 'error');
+            continue;
         }
-        stagedPhotos.push({ file, caption: '', previewUrl: URL.createObjectURL(file) });
-    });
-    fileInput.value = '';
-    renderPhotoGrid();
+        formStatus.textContent = `Optimizing ${file.name} (${formatBytes(file.size)})...`;
+        try {
+            const optimized = await compressPhoto(file);
+            stagedPhotos.push({ file: optimized, originalName: file.name, originalSize: file.size, compressedSize: optimized.size, caption: '', previewUrl: URL.createObjectURL(optimized), uploaded: false });
+            renderPhotoGrid();
+        } catch (_) {
+            HRIS.flash(`${file.name} could not be optimized. Please try another image.`, 'error');
+        }
+    }
+    formStatus.textContent = files.length ? `${stagedPhotos.filter(photo => !photo.uploaded).length} optimized photo(s) ready to upload.` : '';
 }
 
 function renderPhotoGrid() {
     photoGrid.innerHTML = stagedPhotos.map((p, idx) => `
         <div class="attachment-item">
             <img class="thumb" src="${p.previewUrl}" alt="preview">
-            <input type="text" placeholder="Caption" value="${p.caption.replace(/"/g, '&quot;')}"
+            <div class="photo-size-row"><span>${escapeHtml(p.originalName)}</span><b>${formatBytes(p.compressedSize)}</b></div>
+            <div class="photo-compression-note">Original ${formatBytes(p.originalSize)} &rarr; optimized ${formatBytes(p.compressedSize)}</div>
+            <input type="text" placeholder="Caption" value="${escapeHtml(p.caption)}"
                    oninput="stagedPhotos[${idx}].caption = this.value" style="margin-top:0.4rem; font-size:0.78rem; padding:0.35rem 0.5rem;">
             <button type="button" class="btn btn-sm btn-danger" style="margin-top:0.3rem;" onclick="removePhoto(${idx})">Remove</button>
         </div>
@@ -215,20 +264,51 @@ async function ensureAccomplishmentSaved() {
 }
 
 async function uploadStagedPhotos() {
-    for (const photo of stagedPhotos) {
+    const pending = stagedPhotos.filter(photo => !photo.uploaded);
+    let completed = 0;
+    for (const photo of pending) {
         if (photo.uploaded) continue;
         const fd = new FormData();
         fd.append('file', photo.file);
         fd.append('caption', photo.caption);
-        const result = await HRIS.postForm(`${window.BASE_URL}/accomplishments/${accomplishmentId}/upload-attachment`, fd);
+        progressTitle.textContent = `Uploading photo ${completed + 1} of ${pending.length}`;
+        progressDetail.textContent = `${photo.originalName} • ${formatBytes(photo.file.size)}`;
+        const result = await postFormWithProgress(`${window.BASE_URL}/accomplishments/${accomplishmentId}/upload-attachment`, fd, fraction => {
+            setProgress(15 + Math.round(((completed + fraction) / Math.max(1, pending.length)) * 70));
+        });
         if (result.success) {
             photo.uploaded = true;
+            photo.compressedSize = result.file_size || photo.compressedSize;
+            completed++;
+            renderPhotoGrid();
         } else {
             HRIS.flash(result.error || `Failed to upload ${photo.file.name}.`, 'error');
             return false;
         }
     }
     return true;
+}
+
+function setProgress(value, title = '', detail = '') {
+    const percent = Math.max(0, Math.min(100, Math.round(value)));
+    progressBox.hidden = false;
+    progressFill.style.width = `${percent}%`;
+    progressPercent.textContent = `${percent}%`;
+    progressBox.querySelector('[role="progressbar"]').setAttribute('aria-valuenow', String(percent));
+    if (title) progressTitle.textContent = title;
+    if (detail) progressDetail.textContent = detail;
+}
+
+function postFormWithProgress(url, formData, onProgress) {
+    return new Promise(resolve => {
+        formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]')?.content || '');
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+        xhr.upload.addEventListener('progress', event => { if (event.lengthComputable) onProgress(event.loaded / event.total); });
+        xhr.addEventListener('load', () => { try { resolve(JSON.parse(xhr.responseText)); } catch (_) { resolve({ success: false, error: 'The server response could not be read.' }); } });
+        xhr.addEventListener('error', () => resolve({ success: false, error: 'Upload interrupted. Check your connection and try again.' }));
+        xhr.send(formData);
+    });
 }
 
 function validateRequiredFields() {
@@ -252,7 +332,9 @@ document.getElementById('btn-save-draft').addEventListener('click', async () => 
         return;
     }
     setWorking(true);
+    setProgress(5, 'Saving draft', 'Saving accomplishment details...');
     if (await ensureAccomplishmentSaved() && await uploadStagedPhotos()) {
+        setProgress(100, 'Draft saved', 'All details and photos were saved successfully.');
         formStatus.textContent = 'Draft saved.';
         HRIS.flash('Draft saved.', 'success');
     } else {
@@ -268,6 +350,7 @@ document.getElementById('btn-submit').addEventListener('click', async () => {
         return;
     }
     setWorking(true);
+    setProgress(5, 'Preparing submission', 'Saving accomplishment details...');
     formStatus.textContent = 'Submitting…';
     if (await ensureAccomplishmentSaved()) {
         if (!await uploadStagedPhotos()) {
@@ -277,6 +360,7 @@ document.getElementById('btn-submit').addEventListener('click', async () => {
         }
         const result = await HRIS.postJson(`${window.BASE_URL}/accomplishments/${accomplishmentId}/submit`, {});
         if (result.success) {
+            setProgress(100, 'Submission complete', 'Opening your submitted accomplishment...');
             window.location.href = `${window.BASE_URL}/accomplishments/${accomplishmentId}`;
         } else {
             HRIS.flash(result.error || 'Failed to submit.', 'error');

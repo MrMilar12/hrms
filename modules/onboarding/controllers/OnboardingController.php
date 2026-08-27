@@ -81,13 +81,25 @@ class OnboardingController extends Controller
             'sex' => 'Gender', 'civil_status' => 'Civil status', 'mobile_no' => 'Contact number',
             'pwd_status' => 'PWD status', 'email' => 'Email address', 'house_block_lot' => 'House / lot / street address',
             'barangay' => 'Barangay', 'city_municipality' => 'City / municipality', 'province' => 'Province',
+            'privacy_consent' => 'Data privacy consent',
         ];
         $validator = new Validator($_POST);
         foreach ($required as $field => $label) $validator->required($field, $label);
         $validator->maxLength('employee_number', 30)->date('birth_date')->email('email')
             ->in('sex', ['Male', 'Female'])
             ->in('civil_status', ['Single', 'Married', 'Widowed', 'Separated', 'Others'])
-            ->in('pwd_status', ['0', '1']);
+            ->in('pwd_status', ['0', '1'])
+            ->in('privacy_consent', ['1']);
+
+        $birthDate = (string) ($_POST['birth_date'] ?? '');
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $birthDate) && $birthDate > date('Y-m-d')) {
+            $this->personalDetailsSetup('Date of birth cannot be in the future. Please select your actual birth date.', $_POST);
+            return;
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $birthDate) && $birthDate < '1900-01-01') {
+            $this->personalDetailsSetup('Date of birth must be January 1, 1900 or later.', $_POST);
+            return;
+        }
 
         if ($validator->fails()) {
             $messages = [];
@@ -133,8 +145,13 @@ class OnboardingController extends Controller
 
         $_SESSION['display_name'] = trim(($personal['first_name'] ?? '') . ' ' . ($personal['surname'] ?? ''));
         Auth::completePersonalDetailsSetup();
-        AuditLogger::log('complete_personal_details_setup', 'pds_personal_info', Auth::employeeId(), null, ['completed' => true, 'employee_number' => $employeeNumber]);
-        $this->redirect('/dashboard');
+        AuditLogger::log('complete_personal_details_setup', 'pds_personal_info', Auth::employeeId(), null, [
+            'completed' => true,
+            'employee_number' => $employeeNumber,
+            'privacy_consent' => true,
+            'privacy_notice' => 'RA 10173 onboarding consent v1',
+        ]);
+        $this->redirect('/onboarding');
     }
 
     public function index(): void

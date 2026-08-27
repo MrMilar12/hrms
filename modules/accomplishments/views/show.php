@@ -101,6 +101,7 @@ document.getElementById('btn-submit-now')?.addEventListener('click', async () =>
 
 async function review(decision) {
     let approvalPassword = '';
+    const isApproval = decision === 'Approved';
     if (decision === 'Approved') {
         if (window.Swal) {
             const confirmation = await Swal.fire({
@@ -123,6 +124,20 @@ async function review(decision) {
             approvalPassword = window.prompt('Enter your account password to confirm approval:') || '';
             if (!approvalPassword) return;
         }
+    } else if (window.Swal) {
+        const confirmation = await Swal.fire({
+            title: 'Return for revision?',
+            text: 'The employee will be notified and can edit and resubmit this accomplishment.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Return for revision',
+            cancelButtonText: 'Keep reviewing',
+            confirmButtonColor: '#d97706',
+            reverseButtons: true
+        });
+        if (!confirmation.isConfirmed) return;
+    } else if (!window.confirm('Return this accomplishment to the employee for revision?')) {
+        return;
     }
     const formData = new FormData();
     formData.append('decision', decision);
@@ -131,12 +146,27 @@ async function review(decision) {
     const result = await HRIS.postForm(`${window.BASE_URL}/accomplishments/${accomplishmentId}/review`, formData);
     if (result.success) {
         if (window.Swal) {
-            await Swal.fire({title: 'Approved', text: 'The accomplishment was approved successfully.', icon: 'success', confirmButtonColor: '#3b6fe0'});
+            await Swal.fire(isApproval ? {
+                title: 'Accomplishment approved',
+                text: 'The accomplishment was approved successfully.',
+                icon: 'success',
+                confirmButtonColor: '#3b6fe0'
+            } : {
+                title: 'Returned for revision',
+                text: 'The employee has been notified and can revise this accomplishment.',
+                icon: 'success',
+                confirmButtonColor: '#d97706'
+            });
         }
         window.location.reload();
     } else {
-        if (window.Swal && decision === 'Approved') {
-            Swal.fire({title: 'Approval not completed', text: result.error || 'Review failed.', icon: 'error', confirmButtonColor: '#3b6fe0'});
+        if (window.Swal) {
+            Swal.fire({
+                title: isApproval ? 'Approval not completed' : 'Return not completed',
+                text: result.error || 'Review failed.',
+                icon: 'error',
+                confirmButtonColor: isApproval ? '#3b6fe0' : '#d97706'
+            });
         } else {
             HRIS.flash(result.error || 'Review failed.', 'error');
         }

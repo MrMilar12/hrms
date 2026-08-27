@@ -7,31 +7,57 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HRMS &mdash; Login</title>
+<script>
+(function () {
+    try {
+        const settings = JSON.parse(localStorage.getItem('hrms-appearance') || '{}');
+        const mode = settings.mode || 'system';
+        const dark = mode === 'dark' || (mode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    } catch (_) {
+        document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+})();
+</script>
 <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/glass.css?v=<?= rawurlencode(CSS_ASSET_VERSION) ?>">
 </head>
 <body class="auth-page">
-<div class="auth-shell"> 
+<button class="auth-theme-toggle" id="auth-theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch theme">
+    <svg class="theme-icon-sun" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.41M17.66 6.34l1.41-1.41"/></svg>
+    <svg class="theme-icon-moon" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+</button>
+<main class="auth-shell">
     <div class="auth-branding">
-        <div class="brand-mark"><span class="brand-icon">&#10024;</span> HRIS</div>
-        <div>
-            <h1>Welcome back to&nbsp;eManage.</h1>
-            <p class="lead">Manage employee records, Personal Data Sheets, and tasks &mdash; all in one place.</p>
+        <div class="brand-mark">
+            <span class="brand-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+            </span>
+            <span><strong>HRMS</strong><small>Human Resource Management System</small></span>
+        </div>
+        <div class="auth-brand-copy">
+            <span class="auth-eyebrow">Your people. One platform.</span>
+            <h1>Empowering people,<br>simplifying work.</h1>
+            <p class="lead">A secure workspace for employee records, Personal Data Sheets, and daily operations.</p>
             <div class="auth-feature-list">
-                 <div class="feature"><span class="feature-icon">&#128221;</span> Phase 1-Project PUNLA- Personel Unified Nurturing Labor Administration</div>
-                <div class="feature"><span class="feature-icon">&#128203;</span> CS Form 212 (PDS) with completion tracking</div>
-                <div class="feature"><span class="feature-icon">&#10003;</span> Task management with photo attachments</div>
-                <div class="feature"><span class="feature-icon">&#10003;</span> Task management with photo attachments</div>
-                
-
+                <div class="feature"><span class="feature-icon">01</span><span><strong>Project PUNLA</strong><small>Personnel Unified Nurturing Labor Administration</small></span></div>
+                <div class="feature"><span class="feature-icon">02</span><span><strong>Digital PDS</strong><small>CS Form 212 with completion tracking</small></span></div>
+                <div class="feature"><span class="feature-icon">03</span><span><strong>Smarter workflows</strong><small>Task management and photo attachments</small></span></div>
             </div>
         </div>
-        <div class="auth-footnote">&copy; <?= date('Y') ?> HRMS &middot; Human Resource Management System</div>
+        <div class="auth-footnote"><span class="status-dot"></span> Secure HR workspace <span>&copy; <?= date('Y') ?> HRMS</span></div>
     </div>
 
     <div class="auth-form-panel">
         <div class="auth-card">
-            <h1>Sign in</h1>
-            <p class="subtitle">Enter your credentials to access your account.</p>
+            <div class="auth-mobile-brand">
+                <span class="mobile-brand-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+                </span>
+                <span><strong>HRMS</strong><small>Human Resource Management System</small></span>
+            </div>
+            <span class="form-eyebrow">Welcome back</span>
+            <h1>Sign in to your account</h1>
+            <p class="subtitle">Enter your credentials to continue to the HRMS workspace.</p>
 
             <?php if ($error): ?>
                 <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
@@ -72,14 +98,34 @@
                     </label>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Sign In</button>
+                <button type="submit" class="btn btn-primary auth-submit">
+                    Sign in
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </button>
             </form>
 
-            <div class="auth-form-footer">Trouble signing in? Contact your HR administrator.</div>
+            <div class="auth-form-footer"><span aria-hidden="true">&#128274;</span> Your account is protected by secure authentication.</div>
         </div>
     </div>
-</div>
+</main>
 <script>
+const themeToggle = document.getElementById('auth-theme-toggle');
+const syncThemeToggle = () => {
+    const dark = document.documentElement.dataset.theme === 'dark';
+    themeToggle.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+    themeToggle.setAttribute('aria-pressed', String(dark));
+};
+themeToggle?.addEventListener('click', () => {
+    const nextMode = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = nextMode;
+    try {
+        const settings = JSON.parse(localStorage.getItem('hrms-appearance') || '{}');
+        localStorage.setItem('hrms-appearance', JSON.stringify({ ...settings, mode: nextMode }));
+    } catch (_) {}
+    syncThemeToggle();
+});
+syncThemeToggle();
+
 document.getElementById('toggle-password')?.addEventListener('click', (e) => {
     const btn = e.currentTarget;
     const input = document.getElementById('password');

@@ -446,6 +446,7 @@ class AccomplishmentController extends Controller
         try {
             $dir = UPLOADS_PATH . "/accomplishments/{$accomplishmentId}";
             $result = Uploader::handleImage($_FILES['file'], $dir);
+            $result['file_size'] = $this->compressAccomplishmentImage($result['file_path'], $result['file_type'], 500 * 1024);
             $caption = Validator::sanitizeString($this->input('caption', ''));
 
             $attachmentId = $this->model->addAttachment(
@@ -459,7 +460,7 @@ class AccomplishmentController extends Controller
             );
 
             AuditLogger::log('create', 'accomplishment_attachments', $attachmentId, null, ['accomplishment_id' => $accomplishmentId, 'file_type' => $result['file_type']]);
-            $this->json(['success' => true, 'message' => 'Photo uploaded.']);
+            $this->json(['success' => true, 'message' => 'Photo uploaded.', 'file_size' => $result['file_size']]);
         } catch (RuntimeException $e) {
             $this->json(['success' => false, 'error' => $e->getMessage()], 422);
         }
@@ -511,6 +512,51 @@ class AccomplishmentController extends Controller
         );
         $stmt->execute([$taskId, $employeeId]);
         return (bool) $stmt->fetchColumn();
+    }
+
+    /** Re-encodes accomplishment evidence until its stored file is at or below the requested size. */
+    private function compressAccomplishmentImage(string $path, string $mimeType, int $targetBytes): int
+    {
+        clearstatcache(true, $path);
+        $currentSize = (int) (filesize($path) ?: 0);
+        if ($currentSize > 0 && $currentSize <= $targetBytes) return $currentSize;
+
+        $decoder = match ($mimeType) {
+            'image/jpeg' => 'imagecreatefromjpeg',
+            'image/png' => 'imagecreatefrompng',
+            'image/webp' => 'imagecreatefromwebp',
+            default => null,
+        };
+        if (!$decoder || !function_exists($decoder)) return $currentSize;
+        $source = @$decoder($path);
+        if (!$source) return $currentSize;
+
+        $width = imagesx($source);
+        $height = imagesy($source);
+        $scale = 1.0;
+        for ($attempt = 0; $attempt < 12; $attempt++) {
+            $newWidth = max(1, (int) round($width * $scale));
+            $newHeight = max(1, (int) round($height * $scale));
+            $canvas = imagecreatetruecolor($newWidth, $newHeight);
+            if ($mimeType === 'image/png') {
+                imagealphablending($canvas, false);
+                imagesavealpha($canvas, true);
+            }
+            imagecopyresampled($canvas, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+            $quality = max(46, 82 - ($attempt * 4));
+            match ($mimeType) {
+                'image/jpeg' => imagejpeg($canvas, $path, $quality),
+                'image/png' => imagepng($canvas, $path, min(9, 6 + intdiv($attempt, 3))),
+                'image/webp' => imagewebp($canvas, $path, $quality),
+            };
+            imagedestroy($canvas);
+            clearstatcache(true, $path);
+            $currentSize = (int) (filesize($path) ?: 0);
+            if ($currentSize > 0 && $currentSize <= $targetBytes) break;
+            $scale *= .84;
+        }
+        imagedestroy($source);
+        return $currentSize;
     }
 
     /** Resolves which employee the new accomplishment belongs to: an explicit employee_id (HR/Admin/Supervisor only) or the current user's own record. */

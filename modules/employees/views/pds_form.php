@@ -48,6 +48,14 @@ require MODULES_PATH . '/shared/views/header.php';
         <strong id="pds-completion-text"><?= $completionPercent ?>% Complete</strong>
     </div>
 
+    <aside class="pds-na-instruction" aria-label="Important form instruction">
+        <span class="pds-na-icon" aria-hidden="true">i</span>
+        <div>
+            <strong>Do not leave applicable text fields blank</strong>
+            <p>If you do not have the requested information or it does not apply to you, enter <b>N/A</b>. Leave date, number, and selection fields blank when they do not apply.</p>
+        </div>
+    </aside>
+
     <div class="tabs" style="margin-top:1.25rem; margin-bottom:0;">
         <button data-tab="tab-personal" class="active">Personal</button>
         <button data-tab="tab-family">Family</button>
@@ -91,14 +99,41 @@ require MODULES_PATH . '/shared/views/header.php';
             </div>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>Height (m)</label><input name="height_m" value="<?= pv($personalInfo, 'height_m') ?>"></div>
+            <div class="form-group"><label>Height</label><input name="height_m" inputmode="decimal" value="<?= pv($personalInfo, 'height_m') ?>" placeholder="1.65 m or 165 cm"><small class="field-hint">Meters or centimeters accepted</small></div>
             <div class="form-group"><label>Weight (kg)</label><input name="weight_kg" value="<?= pv($personalInfo, 'weight_kg') ?>"></div>
-            <div class="form-group"><label>Blood Type</label><input name="blood_type" value="<?= pv($personalInfo, 'blood_type') ?>"></div>
-            <div class="form-group"><label>Citizenship</label><input name="citizenship" value="<?= pv($personalInfo, 'citizenship') ?>"></div>
+            <?php $bloodType = strtoupper(trim((string) ($personalInfo['blood_type'] ?? ''))); ?>
+            <div class="form-group"><label>Blood Type</label>
+                <select name="blood_type">
+                    <option value="">Select blood type</option>
+                    <?php foreach (['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'UNKNOWN', 'N/A'] as $type): ?>
+                        <option value="<?= $type ?>" <?= $bloodType === $type ? 'selected' : '' ?>><?= $type ?></option>
+                    <?php endforeach; ?>
+                    <?php if ($bloodType !== '' && !in_array($bloodType, ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'UNKNOWN', 'N/A'], true)): ?>
+                        <option value="<?= htmlspecialchars($bloodType) ?>" selected><?= htmlspecialchars($bloodType) ?> (Previously saved)</option>
+                    <?php endif; ?>
+                </select>
+                <small class="field-hint">Choose Unknown if you have not had your blood type tested.</small>
+            </div>
+            <?php
+            $citizenship = trim((string) ($personalInfo['citizenship'] ?? ''));
+            $hasDualCitizenship = trim((string) ($personalInfo['dual_citizenship_country'] ?? '')) !== ''
+                || strcasecmp($citizenship, 'Dual Citizenship') === 0;
+            ?>
+            <div class="form-group"><label>Citizenship</label>
+                <select name="citizenship" data-citizenship-select>
+                    <option value="">Select citizenship</option>
+                    <option value="FILIPINO" <?= !$hasDualCitizenship && strcasecmp($citizenship, 'Filipino') === 0 ? 'selected' : '' ?>>Filipino</option>
+                    <option value="DUAL CITIZENSHIP" <?= $hasDualCitizenship ? 'selected' : '' ?>>Dual Citizenship</option>
+                    <?php if (!$hasDualCitizenship && $citizenship !== '' && strcasecmp($citizenship, 'Filipino') !== 0 && strcasecmp($citizenship, 'Dual Citizenship') !== 0): ?>
+                        <option value="<?= htmlspecialchars($citizenship) ?>" selected><?= htmlspecialchars($citizenship) ?> (Previously saved)</option>
+                    <?php endif; ?>
+                </select>
+                <small class="field-hint">Choose Dual Citizenship only if you are Filipino and also a citizen of another country.</small>
+            </div>
         </div>
-        <div class="form-row">
+        <div class="form-row dual-citizenship-fields" data-dual-citizenship-fields>
             <div class="form-group"><label>Dual Citizenship Basis</label><select name="dual_citizenship_type"><option value="">Not applicable</option><?php foreach (['By Birth','By Naturalization'] as $type): ?><option value="<?= $type ?>" <?= ($personalInfo['dual_citizenship_type'] ?? '') === $type ? 'selected' : '' ?>><?= $type ?></option><?php endforeach; ?></select></div>
-            <div class="form-group"><label>Dual Citizenship Country</label><input name="dual_citizenship_country" value="<?= pv($personalInfo, 'dual_citizenship_country') ?>"></div>
+            <div class="form-group"><label>Other Country of Citizenship</label><input name="dual_citizenship_country" value="<?= pv($personalInfo, 'dual_citizenship_country') ?>" placeholder="Enter country, e.g. Canada"></div>
         </div>
         <div class="form-row">
             <div class="form-group"><label>GSIS No.</label><input name="gsis_no" value="<?= pv($personalInfo, 'gsis_no') ?>"></div>
@@ -123,7 +158,7 @@ require MODULES_PATH . '/shared/views/header.php';
     </form>
 
     <div class="sidebar-divider"></div>
-    <form class="ajax-section-form" data-endpoint="<?= BASE_URL ?>/pds/save-section/addresses?employee_id=<?= UrlId::encode($employeeId) ?>">
+    <form class="ajax-section-form pds-address-form" data-endpoint="<?= BASE_URL ?>/pds/save-section/addresses?employee_id=<?= UrlId::encode($employeeId) ?>">
         <h3>Residential Address</h3>
         <div class="form-row">
             <?php $r = $addresses['Residential'] ?? []; ?>
@@ -132,9 +167,9 @@ require MODULES_PATH . '/shared/views/header.php';
             <div class="form-group"><label>Subdivision/Village</label><input name="residential[subdivision_village]" value="<?= pv($r, 'subdivision_village') ?>"></div>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>Barangay</label><input name="residential[barangay]" value="<?= pv($r, 'barangay') ?>"></div>
-            <div class="form-group"><label>City/Municipality</label><input name="residential[city_municipality]" value="<?= pv($r, 'city_municipality') ?>"></div>
-            <div class="form-group"><label>Province</label><input name="residential[province]" value="<?= pv($r, 'province') ?>"></div>
+            <div class="form-group"><label>Province</label><select name="residential[province]" data-address-province="residential" data-searchable-select data-search-placeholder="Search province..."><option value="<?= pv($r, 'province') ?>" selected><?= pv($r, 'province', 'Select province') ?></option></select></div>
+            <div class="form-group"><label>City/Municipality</label><select name="residential[city_municipality]" data-address-city="residential" data-searchable-select data-search-placeholder="Search city or municipality..."><option value="<?= pv($r, 'city_municipality') ?>" selected><?= pv($r, 'city_municipality', 'Select province first') ?></option></select></div>
+            <div class="form-group"><label>Barangay</label><select name="residential[barangay]" data-address-barangay="residential" data-searchable-select data-search-placeholder="Search barangay..."><option value="<?= pv($r, 'barangay') ?>" selected><?= pv($r, 'barangay', 'Select city first') ?></option></select></div>
             <div class="form-group"><label>Zip Code</label><input name="residential[zip_code]" value="<?= pv($r, 'zip_code') ?>"></div>
         </div>
 
@@ -146,11 +181,12 @@ require MODULES_PATH . '/shared/views/header.php';
             <div class="form-group"><label>Subdivision/Village</label><input name="permanent[subdivision_village]" value="<?= pv($p, 'subdivision_village') ?>"></div>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>Barangay</label><input name="permanent[barangay]" value="<?= pv($p, 'barangay') ?>"></div>
-            <div class="form-group"><label>City/Municipality</label><input name="permanent[city_municipality]" value="<?= pv($p, 'city_municipality') ?>"></div>
-            <div class="form-group"><label>Province</label><input name="permanent[province]" value="<?= pv($p, 'province') ?>"></div>
+            <div class="form-group"><label>Province</label><select name="permanent[province]" data-address-province="permanent" data-searchable-select data-search-placeholder="Search province..."><option value="<?= pv($p, 'province') ?>" selected><?= pv($p, 'province', 'Select province') ?></option></select></div>
+            <div class="form-group"><label>City/Municipality</label><select name="permanent[city_municipality]" data-address-city="permanent" data-searchable-select data-search-placeholder="Search city or municipality..."><option value="<?= pv($p, 'city_municipality') ?>" selected><?= pv($p, 'city_municipality', 'Select province first') ?></option></select></div>
+            <div class="form-group"><label>Barangay</label><select name="permanent[barangay]" data-address-barangay="permanent" data-searchable-select data-search-placeholder="Search barangay..."><option value="<?= pv($p, 'barangay') ?>" selected><?= pv($p, 'barangay', 'Select city first') ?></option></select></div>
             <div class="form-group"><label>Zip Code</label><input name="permanent[zip_code]" value="<?= pv($p, 'zip_code') ?>"></div>
         </div>
+        <p class="address-lookup-status" id="address-lookup-status" role="status">Loading Philippine places&hellip;</p>
         <button class="btn btn-primary" type="submit">Save Addresses</button>
     </form>
 </div>
@@ -398,7 +434,11 @@ function saveRepeatingSection(section) {
         const obj = {};
         fields.forEach(([name]) => {
             const el = rowEl.querySelector(`[data-field="${name}"]`);
-            if (el && el.value !== '') obj[name] = el.value;
+            if (el && el.value !== '') {
+                const isTextEntry = el.matches('textarea, input:not([type="date"]):not([type="number"])');
+                obj[name] = isTextEntry ? el.value.toLocaleUpperCase() : el.value;
+                if (isTextEntry) el.value = obj[name];
+            }
         });
         return obj;
     });
@@ -407,14 +447,121 @@ function saveRepeatingSection(section) {
     formData.append('rows', JSON.stringify(rows));
     HRIS.postForm(`${window.BASE_URL}/pds/save-section/${section}?employee_id=<?= UrlId::encode($employeeId) ?>`, formData)
         .then(result => {
-            if (result.success) HRIS.updatePdsCompletion(result.completionPercent);
-            HRIS.flash(result.message || (result.success ? 'Saved.' : 'Save failed.'), result.success ? 'success' : 'error');
-        });
+            if (result.success) {
+                HRIS.updatePdsCompletion(result.completionPercent);
+                HRIS.flash(result.message || 'Saved.', 'success');
+            } else if (window.showPdsSaveError) {
+                window.showPdsSaveError(container, result);
+            }
+        })
+        .catch(() => window.showPdsSaveError?.(container, {
+            error: 'The server response could not be read.',
+            suggestion: 'Check your connection, refresh the page, and submit this section again.',
+        }));
 }
 
 Object.keys(REPEATING_INITIAL_DATA).forEach(section => {
     REPEATING_INITIAL_DATA[section].forEach(row => addRepeatingRow(section, row));
 });
+
+// Cascading Philippine address selection: Province -> City/Municipality -> Barangay.
+(() => {
+    const apiBase = 'https://psgc.cloud/api/v2';
+    const status = document.getElementById('address-lookup-status');
+    const provinceSelects = [...document.querySelectorAll('[data-address-province]')];
+    if (!provinceSelects.length) return;
+
+    const unpack = payload => Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : []);
+    const placeName = value => typeof value === 'string' ? value : (value?.name || '');
+    const normalize = value => String(value || '').trim().toLocaleLowerCase();
+    const parentName = city => placeName(city.province) || placeName(city.region);
+    let cities = [];
+
+    const fillSelect = (select, items, placeholder, selectedValue = '') => {
+        select.replaceChildren();
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = placeholder;
+        select.appendChild(placeholderOption);
+        items.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.value;
+            option.textContent = String(item.label).toLocaleUpperCase();
+            if (normalize(item.value) === normalize(selectedValue)) option.selected = true;
+            select.appendChild(option);
+        });
+        const searchInput = select.closest('.searchable-select')?.querySelector('.searchable-select-input');
+        if (searchInput) {
+            const current = select.options[select.selectedIndex];
+            searchInput.value = current?.value ? current.textContent.trim() : '';
+        }
+    };
+
+    const controls = group => ({
+        province: document.querySelector(`[data-address-province="${group}"]`),
+        city: document.querySelector(`[data-address-city="${group}"]`),
+        barangay: document.querySelector(`[data-address-barangay="${group}"]`),
+    });
+
+    const loadBarangays = async (group, selectedValue = '') => {
+        const fields = controls(group);
+        const city = cities.find(item => normalize(item.name) === normalize(fields.city.value) && normalize(parentName(item)) === normalize(fields.province.value));
+        fillSelect(fields.barangay, [], fields.city.value ? 'Loading barangays…' : 'Select city first');
+        if (!city) return;
+        try {
+            const response = await fetch(`${apiBase}/cities-municipalities/${encodeURIComponent(city.code)}/barangays`);
+            if (!response.ok) throw new Error('Barangay lookup failed');
+            const barangays = unpack(await response.json()).sort((a, b) => a.name.localeCompare(b.name));
+            fillSelect(fields.barangay, barangays.map(item => ({ value: item.name, label: item.name })), 'Select barangay', selectedValue);
+        } catch (_) {
+            fillSelect(fields.barangay, selectedValue ? [{ value: selectedValue, label: selectedValue }] : [], 'Barangays unavailable');
+        }
+    };
+
+    const loadCities = (group, selectedCity = '', selectedBarangay = '') => {
+        const fields = controls(group);
+        const matches = cities.filter(city => normalize(parentName(city)) === normalize(fields.province.value));
+        fillSelect(fields.city, matches.map(city => ({ value: city.name, label: city.name })), fields.province.value ? 'Select city/municipality' : 'Select province first', selectedCity);
+        fillSelect(fields.barangay, selectedBarangay ? [{ value: selectedBarangay, label: selectedBarangay }] : [], 'Select city first', selectedBarangay);
+        if (fields.city.value) loadBarangays(group, selectedBarangay);
+    };
+
+    provinceSelects.forEach(select => {
+        const group = select.dataset.addressProvince;
+        select.addEventListener('change', () => loadCities(group));
+        controls(group).city.addEventListener('change', () => loadBarangays(group));
+    });
+
+    fetch(`${apiBase}/cities-municipalities`)
+        .then(response => {
+            if (!response.ok) throw new Error('Place lookup failed');
+            return response.json();
+        })
+        .then(payload => {
+            cities = unpack(payload).sort((a, b) => a.name.localeCompare(b.name));
+            const provinces = [...new Set(cities.map(parentName).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+            provinceSelects.forEach(select => {
+                const group = select.dataset.addressProvince;
+                const fields = controls(group);
+                const saved = { province: select.value, city: fields.city.value, barangay: fields.barangay.value };
+                fillSelect(select, provinces.map(name => ({ value: name, label: name })), 'Select province', saved.province);
+                loadCities(group, saved.city, saved.barangay);
+            });
+            status.textContent = 'Choose a province, then a city or municipality, and finally a barangay.';
+        })
+        .catch(() => {
+            document.querySelectorAll('[data-address-province], [data-address-city], [data-address-barangay]').forEach(select => {
+                const input = document.createElement('input');
+                input.name = select.name;
+                input.value = select.value;
+                input.placeholder = 'Enter manually';
+                input.disabled = select.disabled;
+                select.replaceWith(input);
+            });
+            status.textContent = 'Place selections are temporarily unavailable. Enter the address manually.';
+            status.classList.add('lookup-unavailable');
+        });
+})();
 </script>
 
 <?php require MODULES_PATH . '/shared/views/footer.php'; ?>

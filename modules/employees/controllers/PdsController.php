@@ -13,6 +13,48 @@ class PdsController extends Controller
         'memberships', 'character_references',
     ];
 
+    private const FIELD_LABELS = [
+        'surname' => 'Surname', 'first_name' => 'First name', 'birth_date' => 'Birth date',
+        'height_m' => 'Height', 'weight_kg' => 'Weight', 'email' => 'Email address',
+        'province' => 'Province', 'city_municipality' => 'City/Municipality', 'barangay' => 'Barangay',
+        'zip_code' => 'ZIP code', 'period_from' => 'Period from', 'period_to' => 'Period to',
+        'date_from' => 'Date from', 'date_to' => 'Date to', 'exam_date' => 'Examination date',
+        'monthly_salary' => 'Monthly salary', 'number_of_hours' => 'Number of hours',
+    ];
+
+    private function saveErrorDetails(Throwable $error): array
+    {
+        $message = $error->getMessage();
+        $field = null;
+        if (preg_match("/column ['`]([^'`]+)['`]/i", $message, $match)) $field = $match[1];
+        if (!$field && stripos($message, 'height') !== false) $field = 'height_m';
+        $label = self::FIELD_LABELS[$field] ?? ($field ? ucwords(str_replace('_', ' ', $field)) : 'Current section');
+
+        if (stripos($message, 'out of range') !== false) {
+            $suggestion = $field === 'height_m'
+                ? 'Enter height as 1.65 meters or 165 centimeters.'
+                : 'Enter a smaller numeric value and check that the unit is correct.';
+            $reason = 'The entered number is outside the allowed range.';
+        } elseif (stripos($message, 'data too long') !== false) {
+            $reason = 'The entered text is longer than this field allows.';
+            $suggestion = 'Shorten the value, remove unnecessary spaces, and try again.';
+        } elseif (stripos($message, 'date') !== false) {
+            $reason = 'The date is missing or has an invalid format.';
+            $suggestion = 'Choose a valid date using the date picker.';
+        } elseif (stripos($message, 'decimal') !== false || stripos($message, 'integer') !== false) {
+            $reason = 'This field requires a numeric value.';
+            $suggestion = 'Use numbers only; remove letters, commas, and unit labels.';
+        } elseif (stripos($message, 'cannot be null') !== false) {
+            $reason = 'A required field was left blank.';
+            $suggestion = 'Complete the highlighted field before saving.';
+        } else {
+            $reason = $error instanceof InvalidArgumentException ? $message : 'The value could not be stored in the required format.';
+            $suggestion = 'Review the highlighted field and use the example or choices shown in the form.';
+        }
+
+        return ['field' => $field, 'fieldLabel' => $label, 'error' => $reason, 'suggestion' => $suggestion];
+    }
+
     public function __construct()
     {
         $this->pdsModel = new Pds();
@@ -108,9 +150,10 @@ class PdsController extends Controller
                 'completionPercent' => $this->pdsModel->completionPercent($employeeId),
             ]);
         } catch (InvalidArgumentException $e) {
-            $this->json(['success' => false, 'error' => $e->getMessage()], 400);
+            $this->json(['success' => false, ...$this->saveErrorDetails($e)], 400);
         } catch (Throwable $e) {
-            $this->json(['success' => false, 'error' => 'Failed to save section.'], 500);
+            error_log('PDS save failed [' . $section . ']: ' . $e->getMessage());
+            $this->json(['success' => false, ...$this->saveErrorDetails($e)], 500);
         }
     }
 

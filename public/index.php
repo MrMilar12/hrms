@@ -78,6 +78,8 @@ $router->get('/dashboard', fn() => (new DashboardController())->index());
 $router->get('/settings', fn() => (new SettingsController())->index());
 $router->get('/updates', fn() => (new UpdateController())->index());
 $router->post('/updates/acknowledge', fn() => (new UpdateController())->acknowledge());
+$router->post('/records/unlock', fn() => (new RecordLockController())->unlock());
+$router->post('/records/lock', fn() => (new RecordLockController())->lock());
 
 // ---- Onboarding ----
 $router->get('/onboarding', fn() => (new OnboardingController())->index());

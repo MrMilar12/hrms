@@ -87,6 +87,21 @@ class Pds extends Model
         }
         $table = $this->sectionTable($section);
         $data = array_intersect_key($data, array_flip($allowed));
+        // HTML forms submit blank controls as empty strings. Nullable date,
+        // number and enum columns require NULL when MySQL strict mode is enabled.
+        $data = array_map(static fn($value) => is_string($value) && trim($value) === '' ? null : $value, $data);
+
+        if ($section === 'personal_info' && $data['height_m'] !== null) {
+            if (!is_numeric($data['height_m'])) {
+                throw new InvalidArgumentException('Height must be a number, such as 1.65 meters or 165 centimeters.');
+            }
+            $height = (float) $data['height_m'];
+            if ($height > 3 && $height <= 300) $height /= 100;
+            if ($height < 0.5 || $height > 3) {
+                throw new InvalidArgumentException('Enter a valid height between 0.50 and 3.00 meters.');
+            }
+            $data['height_m'] = number_format($height, 2, '.', '');
+        }
 
         $existing = $this->getSingleRow($section, $employeeId);
         if ($existing) {
@@ -118,6 +133,10 @@ class Pds extends Model
     {
         $allowed = ['house_block_lot', 'street', 'subdivision_village', 'barangay', 'city_municipality', 'province', 'zip_code'];
         $data = array_intersect_key($data, array_flip($allowed));
+        $data = array_map(static function ($value) {
+            $value = trim((string) $value);
+            return function_exists('mb_strtoupper') ? mb_strtoupper($value, 'UTF-8') : strtoupper($value);
+        }, $data);
 
         $stmt = $this->db->prepare('SELECT id FROM pds_addresses WHERE employee_id = ? AND address_type = ?');
         $stmt->execute([$employeeId, $addressType]);
