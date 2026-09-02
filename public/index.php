@@ -33,6 +33,8 @@ spl_autoload_register(function (string $class): void {
         MODULES_PATH . "/accomplishments/controllers/{$class}.php",
         MODULES_PATH . "/accomplishments/models/{$class}.php",
         MODULES_PATH . "/onboarding/controllers/{$class}.php",
+        MODULES_PATH . "/ai/controllers/{$class}.php",
+        MODULES_PATH . "/ai/services/{$class}.php",
     ];
     foreach ($paths as $path) {
         if (is_file($path)) {
@@ -59,7 +61,9 @@ Auth::start();
 header('Cache-Control: private, no-store, max-age=0');
 header('Pragma: no-cache');
 header('X-Content-Type-Options: nosniff');
-header('X-Frame-Options: DENY');
+// The Settings customization is rendered in a same-origin modal iframe.
+// SAMEORIGIN keeps external framing blocked while allowing this HRMS UI.
+header('X-Frame-Options: SAMEORIGIN');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
 
@@ -75,8 +79,11 @@ $router->post('/logout', fn() => (new AuthController())->logout());
 // ---- Dashboard ----
 $router->get('/', fn() => (new DashboardController())->index());
 $router->get('/dashboard', fn() => (new DashboardController())->index());
+$router->get('/settings/drawer', fn() => (new SettingsController())->drawer());
 $router->get('/settings', fn() => (new SettingsController())->index());
 $router->get('/updates', fn() => (new UpdateController())->index());
+$router->get('/ai', fn() => (new AiController())->index());
+$router->post('/ai/chat', fn() => (new AiController())->chat());
 $router->post('/updates/acknowledge', fn() => (new UpdateController())->acknowledge());
 $router->post('/records/unlock', fn() => (new RecordLockController())->unlock());
 $router->post('/records/lock', fn() => (new RecordLockController())->lock());
@@ -100,6 +107,10 @@ $router->get('/employees/create', fn() => (new EmployeeController())->create());
 $router->post('/employees/store', fn() => (new EmployeeController())->store());
 $router->get('/employees/{id}', fn($id) => (new EmployeeController())->show($id));
 $router->post('/employees/{id}/photo', fn($id) => (new EmployeeController())->uploadPhoto($id));
+$router->post('/employees/{id}/movement', fn($id) => (new EmployeeController())->recordMovement($id));
+$router->get('/vacant-positions', fn() => (new EmployeeController())->vacancies());
+$router->get('/vacant-positions/employee-search', fn() => (new EmployeeController())->vacancyEmployeeSearch());
+$router->post('/vacant-positions/{id}/fill', fn($id) => (new EmployeeController())->fillVacancy($id));
 
 // ---- PDS ----
 $router->get('/pds', fn() => (new PdsController())->edit());
@@ -141,6 +152,7 @@ $router->post('/accomplishments/{aid}/attachments/{atid}/delete', fn($aid, $atid
 // ---- Administration ----
 $router->get('/admin/dashboard', fn() => (new AdminController())->dashboard());
 $router->get('/admin/analytics/details', fn() => (new AdminController())->analyticsDetails());
+$router->get('/admin/analytics/storage', fn() => (new AdminController())->analyticsStorage());
 $router->get('/admin/activity', fn() => (new AdminController())->activity());
 $router->get('/admin/users', fn() => (new AdminController())->users());
 $router->post('/admin/users/{id}/status', fn($id) => (new AdminController())->updateUserStatus($id));
@@ -152,6 +164,7 @@ $router->get('/admin/departments', fn() => (new AdminController())->departments(
 $router->post('/admin/departments/store', fn() => (new AdminController())->storeDepartment());
 $router->post('/admin/departments/{id}/delete', fn($id) => (new AdminController())->deleteDepartment($id));
 $router->get('/admin/positions', fn() => (new AdminController())->positions());
+$router->get('/admin/positions/{id}', fn($id) => (new AdminController())->showPosition($id));
 $router->post('/admin/positions/store', fn() => (new AdminController())->storePosition());
 $router->post('/admin/positions/{id}/delete', fn($id) => (new AdminController())->deletePosition($id));
 $router->get('/admin/releases', fn() => (new AdminController())->releases());

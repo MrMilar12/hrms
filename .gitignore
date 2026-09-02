@@ -13,4 +13,5 @@
 !/storage/backups/.gitkeep
 /storage/installed.lock
 /storage/app.key
+/config/llama.php
 .DS_Store

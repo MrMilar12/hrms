@@ -5,30 +5,113 @@ class Employee extends Model
 {
     protected string $table = 'employees';
 
-    public function listWithDetails(int $limit = 50, int $offset = 0): array
+    private function viewerScope(): ?array
     {
+        if (!in_array(Auth::roleName(), ['PSDS', 'SDC', 'Principal', ROLE_UNIT_HEAD], true)) return null;
+        $stmt = $this->db->prepare('SELECT scope_district, scope_department_id, scope_school_id_code FROM users WHERE id = ?');
+        $stmt->execute([Auth::userId()]);
+        return $stmt->fetch() ?: ['scope_district' => null, 'scope_department_id' => null];
+    }
+
+    private function visibilityClause(array &$params): string
+    {
+        $scope = $this->viewerScope();
+        if (!$scope) return '';
+        if (Auth::roleName() === 'PSDS') {
+            $params[] = (string) ($scope['scope_district'] ?? '');
+            return ' WHERE UPPER(TRIM(COALESCE(wp.district, ""))) = UPPER(TRIM(?)) AND wp.personnel_type = "Teaching"';
+        }
+        if (Auth::roleName() === 'SDC') {
+            $params[] = (string) ($scope['scope_district'] ?? '');
+            return ' WHERE UPPER(TRIM(COALESCE(wp.district, ""))) = UPPER(TRIM(?))';
+        }
+        if (Auth::roleName() === 'Principal') {
+            $params[] = (string) ($scope['scope_school_id_code'] ?? '');
+            return ' WHERE TRIM(COALESCE(wp.school_id_code, "")) = TRIM(?)';
+        }
+        $params[] = (int) ($scope['scope_department_id'] ?? 0);
+        return ' WHERE e.department_id = ?';
+    }
+
+    private function filteredClause(array &$params, array $filters = []): string
+    {
+        $where = $this->visibilityClause($params);
+        $conditions = [];
+
+        if (($filters['q'] ?? '') !== '') {
+            $term = '%' . $filters['q'] . '%';
+            $conditions[] = '(e.employee_number LIKE ? OR CONCAT_WS(" ", pi.first_name, pi.middle_name, pi.surname, pi.name_extension) LIKE ? OR d.name LIKE ? OR p.title LIKE ? OR wp.current_school_station LIKE ?)';
+            array_push($params, $term, $term, $term, $term, $term);
+        }
+        if (($filters['personnel_type'] ?? '') !== '') {
+            $conditions[] = 'wp.personnel_type = ?';
+            $params[] = $filters['personnel_type'];
+        }
+        if (($filters['employment_status'] ?? '') !== '') {
+            $conditions[] = 'e.employment_status = ?';
+            $params[] = $filters['employment_status'];
+        }
+        if (($filters['department_id'] ?? 0) > 0) {
+            $conditions[] = 'e.department_id = ?';
+            $params[] = (int) $filters['department_id'];
+        }
+        if (($filters['position_id'] ?? 0) > 0) {
+            $conditions[] = 'e.position_id = ?';
+            $params[] = (int) $filters['position_id'];
+        }
+        if (($filters['district'] ?? '') !== '') {
+            $conditions[] = 'UPPER(TRIM(COALESCE(wp.district, ""))) = UPPER(TRIM(?))';
+            $params[] = $filters['district'];
+        }
+
+        if (!$conditions) return $where;
+        return $where . ($where === '' ? ' WHERE ' : ' AND ') . implode(' AND ', $conditions);
+    }
+
+    public function countVisible(array $filters = []): int
+    {
+        $params = [];
+        $where = $this->filteredClause($params, $filters);
+        $stmt = $this->db->prepare('SELECT COUNT(*) FROM employees e LEFT JOIN departments d ON d.id=e.department_id LEFT JOIN positions p ON p.id=e.position_id LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id LEFT JOIN employee_work_profiles wp ON wp.employee_id=e.id' . $where);
+        $stmt->execute($params);
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function isVisibleToCurrentUser(int $employeeId): bool
+    {
+        if (Auth::employeeId() === $employeeId) return true;
+        $params = [];
+        $where = $this->visibilityClause($params);
+        if ($where === '') return true;
+        $params[] = $employeeId;
+        $stmt = $this->db->prepare('SELECT COUNT(*) FROM employees e LEFT JOIN employee_work_profiles wp ON wp.employee_id = e.id' . $where . ' AND e.id = ?');
+        $stmt->execute($params);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    public function listWithDetails(int $limit = 50, int $offset = 0, array $filters = []): array
+    {
+        $params = [];
+        $where = $this->filteredClause($params, $filters);
+        $order = ($filters['q'] ?? '') !== '' ? 'ORDER BY COALESCE(pi.surname, e.employee_number), pi.first_name, e.employee_number' : 'ORDER BY e.id';
         $stmt = $this->db->prepare(
             'SELECT e.id, e.employee_number, e.date_hired, e.employment_status,
                     d.name AS department_name, p.title AS position_title,
                     pi.first_name, pi.middle_name, pi.surname, pi.name_extension,
                     wp.personnel_type, wp.current_school_station, wp.district,
                     (SELECT ep.id FROM employee_photos ep WHERE ep.employee_id = e.id ORDER BY ep.uploaded_at DESC LIMIT 1) AS photo_id,
-                    ROUND((COALESCE(pcs.completed_sections, 0) / 14) * 100) AS pds_percent
+                    ROUND((COALESCE((SELECT SUM(pcs.is_complete) FROM pds_completion_status pcs WHERE pcs.employee_id=e.id), 0) / 14) * 100) AS pds_percent
              FROM employees e
              LEFT JOIN departments d ON d.id = e.department_id
              LEFT JOIN positions p ON p.id = e.position_id
              LEFT JOIN pds_personal_info pi ON pi.employee_id = e.id
-             LEFT JOIN employee_work_profiles wp ON wp.employee_id = e.id
-             LEFT JOIN (
-                 SELECT employee_id, SUM(is_complete) AS completed_sections
-                 FROM pds_completion_status
-                 GROUP BY employee_id
-             ) pcs ON pcs.employee_id = e.id
-             ORDER BY COALESCE(pi.surname, e.employee_number), pi.first_name, e.employee_number
+             LEFT JOIN employee_work_profiles wp ON wp.employee_id = e.id' . $where . '
+             ' . $order . '
              LIMIT ? OFFSET ?'
         );
-        $stmt->bindValue(1, $limit, PDO::PARAM_INT);
-        $stmt->bindValue(2, $offset, PDO::PARAM_INT);
+        foreach ($params as $index => $param) $stmt->bindValue($index + 1, $param);
+        $stmt->bindValue(count($params) + 1, $limit, PDO::PARAM_INT);
+        $stmt->bindValue(count($params) + 2, $offset, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll();
     }

@@ -447,6 +447,11 @@ class AccomplishmentController extends Controller
             $dir = UPLOADS_PATH . "/accomplishments/{$accomplishmentId}";
             $result = Uploader::handleImage($_FILES['file'], $dir);
             $result['file_size'] = $this->compressAccomplishmentImage($result['file_path'], $result['file_type'], 500 * 1024);
+            if ($result['file_size'] <= 0 || $result['file_size'] > 500 * 1024) {
+                @unlink($result['file_path']);
+                @unlink($result['thumbnail_path']);
+                throw new RuntimeException('The photo could not be compressed below 500 KB. Please choose a smaller image.');
+            }
             $caption = Validator::sanitizeString($this->input('caption', ''));
 
             $attachmentId = $this->model->addAttachment(

@@ -82,7 +82,11 @@ $myAccomplishmentTotal = array_sum($myAccomplishmentCounts);
             </a>
         <?php endif; ?>
 
-        <a class="launcher-app launcher-app-blue" href="<?= BASE_URL ?>/settings">
+        <a class="launcher-app launcher-app-violet" href="<?= BASE_URL ?>/ai">
+            <span class="launcher-app-icon" aria-hidden="true">✦</span><span class="launcher-app-copy"><strong>HRMS AI Assistant</strong><small>Ask your connected Llama model</small></span><span class="launcher-app-arrow" aria-hidden="true">&rarr;</span>
+        </a>
+
+        <a class="launcher-app launcher-app-blue" href="<?= BASE_URL ?>/settings?embed=1" data-settings-modal-open>
             <span class="launcher-app-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></span>
             <span class="launcher-app-copy"><strong>Settings</strong><small>Choose your theme, appearance and preferences</small></span>
             <span class="launcher-app-arrow" aria-hidden="true">&rarr;</span>

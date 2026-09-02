@@ -68,7 +68,15 @@ class Uploader
             mkdir($destinationDir, 0755, true);
         }
 
-        $safeName = bin2hex(random_bytes(16)) . '.' . $extension;
+        // Use the detected MIME type for the stored extension. This prevents
+        // browser-renamed files (for example WebP content named .png) from
+        // being served with the wrong format.
+        $outputExtension = match ($mimeType) {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+        };
+        $safeName = bin2hex(random_bytes(16)) . '.' . $outputExtension;
         $destPath = rtrim($destinationDir, '/\\') . DIRECTORY_SEPARATOR . $safeName;
         $thumbName = 'thumb_' . $safeName;
         $thumbPath = rtrim($destinationDir, '/\\') . DIRECTORY_SEPARATOR . $thumbName;
@@ -85,7 +93,7 @@ class Uploader
             'file_path' => $destPath,
             'thumbnail_path' => $thumbPath,
             'file_type' => $mimeType,
-            'file_size' => $file['size'],
+            'file_size' => (int) (filesize($destPath) ?: 0),
         ];
     }
 
@@ -117,7 +125,7 @@ class Uploader
 
         imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
 
-        match ($mimeType) {
+        $saved = match ($mimeType) {
             'image/jpeg' => imagejpeg($resized, $destPath, 85),
             'image/png' => imagepng($resized, $destPath, 6),
             'image/webp' => imagewebp($resized, $destPath, 85),
@@ -125,5 +133,8 @@ class Uploader
         };
 
         imagedestroy($resized);
+        if (!$saved || !is_file($destPath)) {
+            throw new RuntimeException('The image could not be converted and saved. Please try a JPEG or PNG image.');
+        }
     }
 }

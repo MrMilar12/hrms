@@ -22,7 +22,7 @@ $fullName = trim(($info['first_name'] ?? '') . ' ' . ($info['middle_name'] ?? ''
     <aside class="profile-summary">
         <section class="employee-id-card" aria-label="Employee identification card">
             <div class="employee-id-pattern"></div>
-            <header class="employee-id-header"><span class="employee-id-mark">P</span><span><strong>Project PUNLA</strong><small>Human Resource Management</small></span></header>
+            <header class="employee-id-header"><span class="employee-id-mark">H</span><span><small>Employee workspace</small><strong>Profile summary</strong></span></header>
             <div class="employee-id-body">
                 <form class="profile-photo-form" id="profile-photo-form">
                     <label class="profile-photo-control" for="profile-photo-input" title="Change profile picture">
@@ -38,15 +38,15 @@ $fullName = trim(($info['first_name'] ?? '') . ' ' . ($info['middle_name'] ?? ''
                     <small>JPG, PNG or WebP &middot; up to 5 MB</small>
                 </form>
                 <div class="employee-id-identity">
-                    <span class="employee-id-label">Employee</span>
+                    <span class="employee-id-label">My profile</span>
                     <h1><?= htmlspecialchars($fullName) ?></h1>
                     <p><?= htmlspecialchars($account['position_title'] ?? 'Position not assigned') ?></p>
-                    <strong class="employee-id-number"><?= htmlspecialchars($account['employee_number']) ?></strong>
+                    <strong class="employee-id-number">Employee No. <?= htmlspecialchars($account['employee_number']) ?></strong>
                 </div>
             </div>
             <div class="employee-id-footer">
                 <div><span>Department</span><strong><?= htmlspecialchars($account['department_name'] ?? 'Not assigned') ?></strong><small><?= htmlspecialchars($account['employment_status']) ?> employee</small></div>
-                <div class="employee-id-qr"><img src="<?= htmlspecialchars($qrDataUri) ?>" alt="QR code for employee <?= htmlspecialchars($account['employee_number']) ?>"><small>Scan to identify</small></div>
+                <div class="employee-id-qr"><img src="<?= htmlspecialchars($qrDataUri) ?>" alt="QR code for employee <?= htmlspecialchars($account['employee_number']) ?>"><small>Employee QR</small></div>
             </div>
         </section>
         <p class="employee-id-privacy"><span>&#128274;</span> QR contains your employee number and public work details only. Internal system user IDs are never included.</p>
@@ -57,6 +57,7 @@ $fullName = trim(($info['first_name'] ?? '') . ' ' . ($info['middle_name'] ?? ''
             <div><span class="launcher-eyebrow">Employee workspace</span><h1>My profile</h1><p>Keep your personal, employment, and account information accurate and up to date.</p></div>
             <span class="profile-completeness"><strong><?= (int) $pdsPercent ?>%</strong><small>PDS complete</small></span>
         </header>
+        <div class="profile-action-grid">
         <section class="profile-pds-card glass">
             <div class="profile-pds-icon">&#128196;</div>
             <div class="profile-pds-copy"><span class="launcher-eyebrow">Personal Data Sheet</span><h2>CS Form No. 212</h2><p>Complete your family, education, work history, eligibility, and other official records.</p></div>
@@ -70,6 +71,7 @@ $fullName = trim(($info['first_name'] ?? '') . ' ' . ($info['middle_name'] ?? ''
             <span class="badge <?= !empty($account['two_factor_enabled']) ? 'badge-done' : 'badge-open' ?>"><?= !empty($account['two_factor_enabled']) ? 'Enabled' : 'Not enabled' ?></span>
             <a class="btn btn-secondary" href="<?= BASE_URL ?>/profile/security">Manage security &rarr;</a>
         </section>
+        </div>
 
         <section class="glass-card profile-form-card">
             <div class="profile-section-heading"><div><span class="launcher-eyebrow">Personal details</span><h2>Profile information</h2></div><span id="profile-save-state"></span></div>
@@ -121,8 +123,16 @@ $fullName = trim(($info['first_name'] ?? '') . ' ' . ($info['middle_name'] ?? ''
 
                 <div id="teaching-fields" class="teaching-fields">
                     <div class="teaching-fields-heading"><span>&#127979;</span><div><strong>Teaching and plantilla assignment</strong><small>Required for teaching personnel</small></div></div>
+                    <div class="school-picker" id="profile-school-picker">
+                        <div class="school-picker-heading"><span class="school-picker-icon"><svg viewBox="0 0 24 24"><path d="M4 21h16M6 21V8l6-4 6 4v13M9 12h6M9 16h6"/></svg></span><span><strong>Find assigned school</strong><small>Select an area, then search the official school directory.</small></span><b>Auto-fill</b></div>
+                        <div class="form-row">
+                            <div class="form-group"><label for="profile-school-province"><span>1</span> Province / school division</label><select id="profile-school-province"><option value="">Loading school directory...</option></select></div>
+                            <div class="form-group school-search-group"><label for="profile-school-search"><span>2</span> Search and select school</label><input id="profile-school-search" type="search" placeholder="Select a province or division first" autocomplete="off" disabled><div class="school-search-results" id="profile-school-results" hidden></div></div>
+                        </div>
+                        <p class="school-picker-help" id="profile-school-help"><span aria-hidden="true">i</span><span>Select a province or division, then search by school name or School ID.</span></p>
+                    </div>
                     <div class="form-row">
-                        <div class="form-group"><label>School ID code</label><input name="school_id_code" value="<?= htmlspecialchars($work['school_id_code'] ?? '') ?>" maxlength="30" placeholder="e.g. 300001"></div>
+                        <div class="form-group"><label>School ID code</label><input name="school_id_code" value="<?= htmlspecialchars($work['school_id_code'] ?? '') ?>" maxlength="30" placeholder="Auto-filled after selecting a school"></div>
                         <div class="form-group"><label>Plantilla school station</label><input name="plantilla_school_station" value="<?= htmlspecialchars($work['plantilla_school_station'] ?? '') ?>" placeholder="School where plantilla item is assigned"></div>
                         <div class="form-group"><label>Current school station</label><input name="current_school_station" value="<?= htmlspecialchars($work['current_school_station'] ?? '') ?>" placeholder="Current teaching/detail station"></div>
                         <div class="form-group"><label>District</label><input name="district" value="<?= htmlspecialchars($work['district'] ?? '') ?>" placeholder="e.g. District I"></div>
@@ -192,6 +202,94 @@ const updatePersonnelFields = () => {
 };
 personnelType.addEventListener('change', updatePersonnelFields);
 updatePersonnelFields();
+
+const profileProvince = document.getElementById('profile-school-province');
+const profileSchoolSearch = document.getElementById('profile-school-search');
+const profileSchoolResults = document.getElementById('profile-school-results');
+const profileSchoolHelp = document.getElementById('profile-school-help');
+const profileSchoolPicker = document.getElementById('profile-school-picker');
+const profileAssignment = {
+    id: teachingFields.querySelector('[name="school_id_code"]'),
+    district: teachingFields.querySelector('[name="district"]'),
+    plantilla: teachingFields.querySelector('[name="plantilla_school_station"]'),
+    current: teachingFields.querySelector('[name="current_school_station"]')
+};
+let profileSchoolDirectory = [];
+let profileProvinceSchools = [];
+const normalizeSchoolSearch = value => String(value || '').toLocaleUpperCase().trim();
+const closeProfileSchoolResults = () => { profileSchoolResults.hidden = true; profileSchoolResults.replaceChildren(); };
+const selectProfileSchool = school => {
+    profileSchoolSearch.value = school.n;
+    profileAssignment.id.value = school.i;
+    profileAssignment.district.value = school.d || '';
+    profileAssignment.plantilla.value = school.n;
+    profileAssignment.current.value = school.n;
+    profileSchoolHelp.lastElementChild.textContent = `${school.i} • ${school.d || school.m || school.p} — assignment details filled automatically.`;
+    profileSchoolPicker.classList.add('has-selection');
+    Object.values(profileAssignment).forEach(field => {
+        field.classList.add('auto-filled');
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    closeProfileSchoolResults();
+};
+const showProfileSchoolResults = () => {
+    const query = normalizeSchoolSearch(profileSchoolSearch.value);
+    const matches = profileProvinceSchools.filter(school => !query || normalizeSchoolSearch(`${school.n} ${school.i} ${school.d} ${school.m}`).includes(query)).slice(0, 60);
+    profileSchoolResults.replaceChildren();
+    if (!matches.length) {
+        const empty = document.createElement('div');
+        empty.className = 'school-result-empty';
+        empty.textContent = 'No matching school found. You may enter the assignment manually.';
+        profileSchoolResults.append(empty);
+    } else {
+        matches.forEach(school => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'school-result';
+            const name = document.createElement('strong');
+            name.textContent = school.n;
+            const meta = document.createElement('small');
+            meta.textContent = `${school.i} • ${school.d || school.m || school.p}`;
+            button.append(name, meta);
+            button.addEventListener('click', () => selectProfileSchool(school));
+            profileSchoolResults.append(button);
+        });
+    }
+    profileSchoolResults.hidden = false;
+};
+profileProvince.addEventListener('change', () => {
+    profileProvinceSchools = profileSchoolDirectory.filter(school => school.p === profileProvince.value);
+    profileSchoolSearch.value = '';
+    profileSchoolSearch.disabled = !profileProvince.value;
+    profileSchoolSearch.placeholder = profileProvince.value ? `Search ${profileProvinceSchools.length.toLocaleString()} schools...` : 'Select a province or division first';
+    profileSchoolHelp.lastElementChild.textContent = profileProvince.value ? `${profileProvinceSchools.length.toLocaleString()} schools available in ${profileProvince.value}.` : 'Select a province or division, then search by school name or School ID.';
+    profileSchoolPicker.classList.remove('has-selection');
+    closeProfileSchoolResults();
+});
+profileSchoolSearch.addEventListener('input', showProfileSchoolResults);
+profileSchoolSearch.addEventListener('focus', showProfileSchoolResults);
+document.addEventListener('click', event => { if (!event.target.closest('#profile-school-picker')) closeProfileSchoolResults(); });
+fetch('<?= BASE_URL ?>/assets/data/deped-schools.json')
+    .then(response => { if (!response.ok) throw new Error('School directory unavailable'); return response.json(); })
+    .then(data => {
+        profileSchoolDirectory = data;
+        const provinces = [...new Set(data.map(school => school.p).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+        profileProvince.replaceChildren(new Option('Select province / school division', ''), ...provinces.map(name => new Option(name, name)));
+        const existingId = normalizeSchoolSearch(profileAssignment.id.value);
+        const existingStation = normalizeSchoolSearch(profileAssignment.current.value || profileAssignment.plantilla.value);
+        const existingSchool = data.find(school => (existingId && normalizeSchoolSearch(school.i) === existingId) || (existingStation && normalizeSchoolSearch(school.n) === existingStation));
+        if (existingSchool) {
+            profileProvince.value = existingSchool.p;
+            profileProvince.dispatchEvent(new Event('change'));
+            profileSchoolSearch.value = existingSchool.n;
+            profileSchoolPicker.classList.add('has-selection');
+            profileSchoolHelp.lastElementChild.textContent = `${existingSchool.i} • ${existingSchool.d || existingSchool.m || existingSchool.p} — current school assignment.`;
+        }
+    })
+    .catch(() => {
+        profileProvince.replaceChildren(new Option('Directory unavailable — enter manually', ''));
+        profileSchoolHelp.lastElementChild.textContent = 'The school directory could not be loaded. Enter the assignment fields manually.';
+    });
 
 document.getElementById('profile-form').addEventListener('submit', async (event) => {
     event.preventDefault();

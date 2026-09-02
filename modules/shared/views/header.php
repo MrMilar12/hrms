@@ -48,7 +48,7 @@ if (Auth::check()) {
 </script>
 <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/glass.css?v=<?= rawurlencode(CSS_ASSET_VERSION) ?>">
 <script src="<?= BASE_URL ?>/assets/js/sweetalert2.all.min.js?v=11"></script>
-<script>window.BASE_URL = '<?= BASE_URL ?>'; window.OPEN_APP_DRAWER = <?= $openAppDrawer ? 'true' : 'false' ?>;</script>
+<script>window.BASE_URL = '<?= BASE_URL ?>'; window.HRMS_ROLE = <?= json_encode((string) (Auth::roleName() ?? 'User')) ?>; window.OPEN_APP_DRAWER = <?= $openAppDrawer ? 'true' : 'false' ?>;</script>
 </head>
 <body>
 <div id="flash-message" class="alert" style="display:none; position:fixed; top:1rem; right:1rem; z-index:999; max-width:320px;"></div>
@@ -67,8 +67,10 @@ if (Auth::check()) {
             <?php if (Auth::can('employee.view')): ?>
                 <a class="app-nav-card <?= $isActive('/employees') ?>" href="<?= BASE_URL ?>/employees"><span class="app-nav-icon">&#128100;</span><span><strong>Employees</strong><small>People directory</small></span></a>
             <?php endif; ?>
+            <?php if (Auth::can('employee.manage')): ?>
+                <a class="app-nav-card <?= $isActive('/vacant-positions') ?>" href="<?= BASE_URL ?>/vacant-positions"><span class="app-nav-icon">&#128188;</span><span><strong>Vacant Positions</strong><small>Available plantilla items</small></span></a>
+            <?php endif; ?>
             <a class="app-nav-card <?= $isActive('/profile') ?: $isActive('/pds') ?>" href="<?= BASE_URL ?>/profile"><span class="app-nav-icon">&#128100;</span><span><strong>My Profile</strong><small>Information &amp; PDS</small></span></a>
-            <a class="app-nav-card <?= $isActive('/settings') ?>" href="<?= BASE_URL ?>/settings"><span class="app-nav-icon">&#9881;</span><span><strong>Settings</strong><small>Theme &amp; colors</small></span></a>
             <a class="app-nav-card <?= $isActive('/updates') ?>" href="<?= BASE_URL ?>/updates"><span class="app-nav-icon">&#10024;</span><span><strong>What's New</strong><small>Version <?= htmlspecialchars(SystemRelease::currentVersion()) ?></small></span></a>
             <a class="app-nav-card <?= $isActive('/tasks') ?>" href="<?= BASE_URL ?>/tasks"><span class="app-nav-icon">&#10003;</span><span><strong>Tasks</strong><small>Work board</small></span></a>
             <?php if (Auth::can('accomplishment.create')): ?>
@@ -130,8 +132,9 @@ if (Auth::check()) {
             <div class="header-search-wrap" id="header-search-wrap">
                 <div class="glass-search header-global-search" role="search">
                     <span class="search-leading-icon" aria-hidden="true"></span>
-                    <input type="search" id="global-search" placeholder="Search across HRMS..." aria-label="Search tasks, accomplishments<?= (Auth::roleName() === ROLE_ADMIN || Auth::isDeveloper()) ? ', and employees' : '' ?>" autocomplete="off" aria-expanded="false" aria-controls="global-search-results">
+                    <input type="search" id="global-search" placeholder="Ask HRMS anything..." aria-label="Search your authorized HRMS records" autocomplete="off" aria-expanded="false" aria-controls="global-search-results">
                     <span class="search-hint" aria-hidden="true"><b>⌘</b>K</span>
+                    <button class="search-voice" id="search-voice" type="button" aria-label="Read search results aloud" title="Read results aloud" hidden><span aria-hidden="true">&#128266;</span></button>
                     <button class="search-clear" id="search-clear" type="button" aria-label="Clear search" hidden>&times;</button>
                     <span class="search-spinner" id="search-spinner" hidden></span>
                 </div>
@@ -139,7 +142,7 @@ if (Auth::check()) {
             </div>
 
             <div class="header-actions">
-                <a class="icon-button header-settings-link <?= $isActive('/settings') ?>" href="<?= BASE_URL ?>/settings" aria-label="Appearance settings" title="Appearance settings"><span aria-hidden="true">&#9881;</span></a>
+                <a class="icon-button header-ai-link" href="<?= BASE_URL ?>/ai" aria-label="Open HRMS AI Assistant" title="HRMS AI Assistant"><span aria-hidden="true">✦</span></a>
                 <div class="notification-control">
                     <button class="icon-button <?= $unreadNotificationCount ? 'pulse' : '' ?>" id="notif-toggle" aria-label="Notifications<?= $unreadNotificationCount ? ' (' . $unreadNotificationCount . ' unread)' : '' ?>" data-unread="<?= $unreadNotificationCount ?>">
                         <span aria-hidden="true">&#128276;</span>
@@ -168,4 +171,5 @@ if (Auth::check()) {
                 <form class="header-logout-form" method="post" action="<?= BASE_URL ?>/logout"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Auth::csrfToken()) ?>"><button type="submit" class="logout-control" aria-label="Log out" title="Log out"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"/></svg><b>Logout</b></button></form>
             </div>
         </header>
+        <div class="settings-modal" data-settings-modal hidden role="dialog" aria-modal="true" aria-label="Appearance settings"><div class="settings-modal-backdrop" data-settings-modal-close></div><section class="settings-modal-card"><button class="settings-modal-close" type="button" data-settings-modal-close aria-label="Close appearance settings">&times;</button><iframe title="Appearance settings" data-settings-frame></iframe></section></div>
         <main class="content">

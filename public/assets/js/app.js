@@ -119,10 +119,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }));
 
     // ---- Appearance settings ----
+    try {
+        const moodColors = { mist: '#f7f4f1', lavender: '#f3f0fa', blush: '#fff2f4', mint: '#eef8f4', sky: '#eff6fc', sand: '#faf5e9', peach: '#fff0e6', rose: '#fff0f5', aqua: '#e8f8f8', lilac: '#f2edff', lemon: '#fffbe6', slate: '#e9eef5' };
+        const savedMood = JSON.parse(localStorage.getItem('hrms-appearance') || '{}').background;
+        document.documentElement.style.setProperty('--mood-color', moodColors[savedMood] || moodColors.mist);
+    } catch (_) {}
     const appearanceRoot = document.querySelector('[data-appearance-settings]');
     if (appearanceRoot) {
         const storageKey = 'hrms-appearance';
-        const defaults = { mode: 'system', palette: 'ocean', primary: '#3b6fe0', secondary: '#8b5cf6' };
+        const defaults = { mode: 'system', palette: 'ocean', primary: '#3b6fe0', secondary: '#8b5cf6', background: 'mist' };
         const palettes = {};
         appearanceRoot.querySelectorAll('[data-palette-choice]').forEach(button => {
             palettes[button.dataset.paletteChoice] = {
@@ -139,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     palette: (palettes[saved.palette] || saved.palette === 'custom') ? saved.palette : defaults.palette,
                     primary: validColor(saved.primary) ? saved.primary : defaults.primary,
                     secondary: validColor(saved.secondary) ? saved.secondary : defaults.secondary,
+                    background: appearanceRoot.querySelector(`[data-background-choice="${saved.background}"]`) ? saved.background : defaults.background,
                 };
             }
             catch (_) { return { ...defaults }; }
@@ -155,6 +161,13 @@ document.addEventListener('DOMContentLoaded', () => {
             document.documentElement.style.setProperty('--accent-blue', settings.primary);
             document.documentElement.style.setProperty('--accent-violet', settings.secondary);
             document.documentElement.style.setProperty('--accent-primary', settings.primary);
+            const backgroundChoice = appearanceRoot.querySelector(`[data-background-choice="${settings.background || defaults.background}"]`);
+            document.documentElement.style.setProperty('--mood-color', backgroundChoice?.dataset.backgroundColor || '#f7f4f1');
+            // Keep the dark theme's CSS background in dark mode. The chosen
+            // mood is applied only to the light theme so it cannot wash out
+            // the dark canvas.
+            if (dark) document.documentElement.style.removeProperty('--bg-base');
+            else document.documentElement.style.setProperty('--bg-base', backgroundChoice?.dataset.backgroundColor || '#f7f4f1');
             appearanceRoot.querySelectorAll('[data-theme-choice]').forEach(button => {
                 const selected = button.dataset.themeChoice === settings.mode;
                 button.classList.toggle('selected', selected);
@@ -165,10 +178,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.classList.toggle('selected', selected);
                 button.setAttribute('aria-checked', String(selected));
             });
+            appearanceRoot.querySelectorAll('[data-background-choice]').forEach(button => {
+                const selected = button.dataset.backgroundChoice === (settings.background || defaults.background);
+                button.classList.toggle('selected', selected);
+                button.setAttribute('aria-checked', String(selected));
+            });
             primaryInput.value = settings.primary;
             secondaryInput.value = settings.secondary;
             appearanceRoot.dataset.activeMode = settings.mode;
             appearanceRoot.dataset.activePalette = settings.palette;
+            if (window.parent !== window) window.parent.postMessage({ type: 'hrms-appearance-change', settings, backgroundColor: backgroundChoice?.dataset.backgroundColor || '#f7f4f1' }, window.location.origin);
             if (announce && status) {
                 status.textContent = 'Saved';
                 status.classList.add('is-saved');
@@ -191,6 +210,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
         appearanceRoot.querySelectorAll('[data-palette-choice]').forEach(button => button.addEventListener('click', () => {
             settings = { ...settings, palette: button.dataset.paletteChoice, ...palettes[button.dataset.paletteChoice] };
+            save();
+        }));
+        appearanceRoot.querySelectorAll('[data-background-choice]').forEach(button => button.addEventListener('click', () => {
+            settings = { ...settings, background: button.dataset.backgroundChoice };
             save();
         }));
         const advancedToggle = appearanceRoot.querySelector('[data-advanced-toggle]');
@@ -218,6 +241,20 @@ document.addEventListener('DOMContentLoaded', () => {
         systemTheme.addEventListener?.('change', () => { if (settings.mode === 'system') applySettings(); });
         applySettings();
     }
+
+    window.addEventListener('message', event => {
+        if (event.origin !== window.location.origin || event.data?.type !== 'hrms-appearance-change') return;
+        const settings = event.data.settings || {};
+        if (!/^#[0-9a-f]{6}$/i.test(settings.primary || '') || !/^#[0-9a-f]{6}$/i.test(settings.secondary || '')) return;
+        const dark = settings.mode === 'dark' || (settings.mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document.documentElement.style.setProperty('--accent-blue', settings.primary);
+        document.documentElement.style.setProperty('--accent-violet', settings.secondary);
+        document.documentElement.style.setProperty('--accent-primary', settings.primary);
+        if (dark) document.documentElement.style.removeProperty('--bg-base');
+        else if (/^#[0-9a-f]{6}$/i.test(event.data.backgroundColor || '')) document.documentElement.style.setProperty('--bg-base', event.data.backgroundColor);
+        if (/^#[0-9a-f]{6}$/i.test(event.data.backgroundColor || '')) document.documentElement.style.setProperty('--mood-color', event.data.backgroundColor);
+    });
 
     // ---- Universal table list/card view ----
     document.querySelectorAll('table:not([data-view-toggle="off"])').forEach((table, tableIndex) => {
@@ -350,6 +387,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchResults = document.getElementById('global-search-results');
     const searchSpinner = document.getElementById('search-spinner');
     const searchClear = document.getElementById('search-clear');
+    const searchVoice = document.getElementById('search-voice');
+    const settingsModal = document.querySelector('[data-settings-modal]');
+    const settingsModalOpen = document.querySelector('[data-settings-modal-open]');
+    const settingsFrame = settingsModal?.querySelector('[data-settings-frame]');
+    if (settingsModal && settingsModalOpen && settingsFrame) {
+        const closeSettingsModal = () => { settingsModal.hidden = true; document.body.classList.remove('settings-modal-open'); };
+        settingsModalOpen.addEventListener('click', event => { event.preventDefault(); settingsFrame.src = `${window.BASE_URL}/settings?embed=1`; settingsModal.hidden = false; document.body.classList.add('settings-modal-open'); });
+        settingsModal.querySelectorAll('[data-settings-modal-close]').forEach(button => button.addEventListener('click', closeSettingsModal));
+        document.addEventListener('keydown', event => { if (event.key === 'Escape' && !settingsModal.hidden) closeSettingsModal(); });
+    }
     if (globalSearch && searchResults) {
         let searchTimer;
         let searchRequest;
@@ -357,6 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let activeResult = -1;
         const closeSearch = () => {
             clearTimeout(closeTimer);
+            if (searchVoice) searchVoice.hidden = true;
             searchResults.classList.remove('is-open');
             globalSearch.setAttribute('aria-expanded', 'false');
             activeResult = -1;
@@ -378,16 +426,34 @@ document.addEventListener('DOMContentLoaded', () => {
             items.forEach((item, itemIndex) => item.classList.toggle('active', itemIndex === activeResult));
             items[activeResult].scrollIntoView({block: 'nearest'});
         };
+        const renderSearchStatus = (message, query) => {
+            searchResults.replaceChildren();
+            const status = document.createElement('div');
+            status.className = 'global-search-thinking';
+            status.innerHTML = '<span class="thinking-orb" aria-hidden="true"></span><strong></strong><small></small>';
+            status.querySelector('strong').textContent = message;
+            status.querySelector('small').textContent = `Looking through the records available to you for “${query}”…`;
+            searchResults.appendChild(status);
+            openSearch();
+        };
         const renderSearch = (results, query) => {
+            const normalizedQuery = query.toLocaleLowerCase();
+            const appResults = [...document.querySelectorAll('.app-nav-card')].map(card => {
+                const title = card.querySelector('strong')?.textContent.trim() || '';
+                const description = card.querySelector('small')?.textContent.trim() || '';
+                return {type:'App', title, subtitle:`Available to ${window.HRMS_ROLE || 'your role'} · ${description}`, url:card.href, searchText:`${title} ${description}`.toLocaleLowerCase()};
+            }).filter(app => app.title && app.searchText.includes(normalizedQuery)).filter((app,index,array) => array.findIndex(item => item.title === app.title) === index).map(({searchText,...app}) => app);
+            results = [...appResults, ...results];
             searchResults.replaceChildren();
             const heading = document.createElement('div');
             heading.className = 'global-search-results-head';
             const headingTitle = document.createElement('strong');
-            headingTitle.textContent = 'Search results';
+            headingTitle.textContent = results.length ? 'Here’s what I found' : 'I searched your HRMS records';
             const headingMeta = document.createElement('small');
             headingMeta.textContent = results.length ? `${results.length} match${results.length === 1 ? '' : 'es'} for “${query}”` : `Searching HRMS for “${query}”`;
             heading.append(headingTitle, headingMeta);
             searchResults.appendChild(heading);
+            if (searchVoice) searchVoice.hidden = !results.length || !('speechSynthesis' in window);
             if (!results.length) {
                 const empty = document.createElement('div');
                 empty.className = 'global-search-empty';
@@ -427,6 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
             searchRequest?.abort();
             const query = globalSearch.value.trim();
             if (query.length < 2) { closeSearch(); return; }
+            renderSearchStatus('I’m checking HRMS for you', query);
             searchTimer = setTimeout(async () => {
                 const currentRequest = new AbortController();
                 searchRequest = currentRequest;
@@ -437,7 +504,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const result = await response.json();
                     if (globalSearch.value.trim() === query) renderSearch(result.results || [], query);
                 } catch (error) {
-                    if (error.name !== 'AbortError') HRIS.flash('Search is temporarily unavailable.', 'error');
+                    if (error.name !== 'AbortError') {
+                        renderSearchStatus('I couldn’t complete that search', query);
+                        searchResults.querySelector('small').textContent = 'Please try again in a moment.';
+                    }
                 } finally {
                     if (searchRequest === currentRequest) {
                         searchSpinner.hidden = true;
@@ -456,6 +526,16 @@ document.addEventListener('DOMContentLoaded', () => {
             syncSearchControls();
             closeSearch();
             globalSearch.focus();
+        });
+        searchVoice?.addEventListener('click', () => {
+            if (!('speechSynthesis' in window)) return;
+            const items = [...searchResults.querySelectorAll('.global-search-item')];
+            if (!items.length) return;
+            window.speechSynthesis.cancel();
+            const text = `I found ${items.length} result${items.length === 1 ? '' : 's'} for ${globalSearch.value.trim()}. ` + items.slice(0, 5).map(item => item.querySelector('strong')?.textContent || '').join(', ');
+            window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+            searchVoice.classList.add('is-speaking');
+            window.setTimeout(() => searchVoice.classList.remove('is-speaking'), 1200);
         });
         document.addEventListener('keydown', event => {
             if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -602,6 +682,26 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('active');
             const target = document.getElementById(btn.dataset.tab);
             if (target) target.style.display = 'block';
+        });
+    });
+
+    // ---- Employee profile detail tabs ----
+    document.querySelectorAll('.employee-record-tabs').forEach((workspace) => {
+        const buttons = [...workspace.querySelectorAll('[data-employee-tab]')];
+        const panels = [...workspace.querySelectorAll('.employee-record-tabpanel')];
+        buttons.forEach((button) => {
+            button.addEventListener('click', () => {
+                buttons.forEach((item) => {
+                    const selected = item === button;
+                    item.classList.toggle('active', selected);
+                    item.setAttribute('aria-selected', selected ? 'true' : 'false');
+                });
+                panels.forEach((panel) => {
+                    const selected = panel.id === button.dataset.employeeTab;
+                    panel.hidden = !selected;
+                    panel.classList.toggle('active', selected);
+                });
+            });
         });
     });
 

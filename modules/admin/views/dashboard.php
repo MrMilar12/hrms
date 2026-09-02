@@ -54,7 +54,18 @@ $accomplishmentGradient = $accomplishmentTotal ? implode(',', $accomplishmentSto
         <article class="analytics-kpi analytics-kpi-green" data-analytics-detail="pds"><span class="analytics-kpi-icon">&#128196;</span><div><small>Average PDS</small><strong><?= $summary['pdsAverage'] ?>%</strong><span>Organization completion</span></div></article>
         <article class="analytics-kpi analytics-kpi-pink" data-analytics-detail="review"><span class="analytics-kpi-icon">&#10022;</span><div><small>Awaiting review</small><strong><?= number_format($summary['pendingAccomplishments']) ?></strong><span>Accomplishment submissions</span></div></article>
         <article class="analytics-kpi analytics-kpi-retirement" data-analytics-detail="retirement"><span class="analytics-kpi-icon" aria-hidden="true">&#9203;</span><div><small>Retirement bracket</small><strong><?= number_format($summary['retirementAge']) ?></strong><span>Employees aged 60–65</span></div></article>
+        <article class="analytics-kpi analytics-kpi-orange" data-analytics-detail="vacancies"><span class="analytics-kpi-icon" aria-hidden="true">&#128188;</span><div><small>Vacant positions</small><strong><?= number_format($summary['vacantPositions']) ?></strong><span>Available plantilla items</span></div></article>
+        <article class="analytics-kpi analytics-kpi-blue" data-storage-kpi><span class="analytics-kpi-icon" aria-hidden="true">&#128190;</span><div><small>Uploaded storage</small><strong data-storage-value><?= htmlspecialchars($summary['uploadStorage']) ?></strong><span>Photos and attachments · <span data-storage-updated>Live</span></span></div></article>
     </div>
+
+    <article class="analytics-card glass analytics-storage-card">
+        <div class="analytics-card-head"><div><span class="launcher-eyebrow">System storage</span><h2>Upload storage consumption</h2><p>Actual disk usage by uploaded photos and attachments.</p></div><span class="analytics-chip" data-storage-graph-status>Live</span></div>
+        <div class="analytics-storage-graph" role="img" aria-label="Upload storage consumption by category">
+            <?php foreach (['photos' => 'Profile photos', 'accomplishments' => 'Accomplishment evidence', 'tasks' => 'Task attachments'] as $key => $label): ?>
+                <div class="analytics-storage-row" data-storage-row="<?= $key ?>"><div><strong><?= $label ?></strong><span data-storage-size>0 B</span></div><div class="analytics-storage-track"><i data-storage-bar style="width:0%"></i></div></div>
+            <?php endforeach; ?>
+        </div>
+    </article>
 
     <div class="analytics-grid analytics-grid-primary">
         <article class="analytics-card glass analytics-submissions">
@@ -223,6 +234,28 @@ $accomplishmentGradient = $accomplishmentTotal ? implode(',', $accomplishmentSto
         <?php endif; ?>
     </article>
 </section>
+<script>
+(() => {
+    const value = document.querySelector('[data-storage-value]');
+    const updated = document.querySelector('[data-storage-updated]');
+    const graphStatus = document.querySelector('[data-storage-graph-status]');
+    const formatBytes = bytes => bytes < 1024 ? `${bytes} B` : bytes < 1048576 ? `${(bytes / 1024).toFixed(1)} KB` : bytes < 1073741824 ? `${(bytes / 1048576).toFixed(1)} MB` : `${(bytes / 1073741824).toFixed(2)} GB`;
+    if (!value) return;
+    const refreshStorage = async () => {
+        try {
+            const response = await fetch(`${window.BASE_URL}/admin/analytics/storage`, {headers: {Accept: 'application/json'}, cache: 'no-store'});
+            const result = await response.json();
+            if (response.ok && result.success) {
+                value.textContent = result.formatted; updated.textContent = 'Live · just now'; graphStatus.textContent = 'Live · just now';
+                const total = Math.max(1, result.bytes);
+                Object.entries(result.breakdown || {}).forEach(([key, bytes]) => { const row = document.querySelector(`[data-storage-row="${key}"]`); if (row) { row.querySelector('[data-storage-size]').textContent = formatBytes(bytes); row.querySelector('[data-storage-bar]').style.width = `${Math.max(1, bytes / total * 100)}%`; } });
+            }
+        } catch (_) {}
+    };
+    refreshStorage();
+    window.setInterval(refreshStorage, 15000);
+})();
+</script>
 
 <div class="analytics-modal-backdrop" id="analytics-detail-modal" hidden>
     <section class="analytics-modal glass-strong" role="dialog" aria-modal="true" aria-labelledby="analytics-modal-title">
@@ -240,7 +273,7 @@ $accomplishmentGradient = $accomplishmentTotal ? implode(',', $accomplishmentSto
 
 <script>
 window.addEventListener('DOMContentLoaded', () => {
-    const cards = [...document.querySelectorAll('.admin-analytics .analytics-kpi, .admin-analytics .analytics-card')];
+    const cards = [...document.querySelectorAll('.admin-analytics .analytics-kpi:not([data-storage-kpi]), .admin-analytics .analytics-card')];
     const backdrop = document.getElementById('analytics-detail-modal');
     const modal = backdrop?.querySelector('.analytics-modal');
     const title = document.getElementById('analytics-modal-title');
@@ -248,7 +281,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const list = document.getElementById('analytics-modal-list');
     const search = document.getElementById('analytics-modal-search');
     const count = document.getElementById('analytics-modal-count');
-    const detailTypes = ['employees','teaching','non_teaching','active_users','open_tasks','pds','review','retirement','submissions','gender','positions','departments','tasks','employment','personnel','age','tenure','accomplishments','retirement'];
+    const detailTypes = ['employees','teaching','non_teaching','active_users','open_tasks','pds','review','retirement','vacancies','submissions','gender','positions','departments','tasks','employment','personnel','age','tenure','accomplishments','retirement'];
     let rows = [];
 
     const normalize = value => String(value || '').replace(/\s+/g, ' ').trim();

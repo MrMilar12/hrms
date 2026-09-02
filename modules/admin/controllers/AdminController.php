@@ -3,6 +3,66 @@
 
 class AdminController extends Controller
 {
+    private function uploadStorageBytes(): int
+    {
+        if (!is_dir(UPLOADS_PATH)) return 0;
+        $bytes = 0;
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(UPLOADS_PATH, FilesystemIterator::SKIP_DOTS)
+        );
+        foreach ($iterator as $file) {
+            if ($file->isFile()) $bytes += $file->getSize();
+        }
+        return $bytes;
+    }
+
+    private function directoryStorageBytes(string $directory): int
+    {
+        if (!is_dir($directory)) return 0;
+        $bytes = 0;
+        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS));
+        foreach ($iterator as $file) if ($file->isFile()) $bytes += $file->getSize();
+        return $bytes;
+    }
+
+    private function uploadStorageBreakdown(): array
+    {
+        return [
+            'photos' => $this->directoryStorageBytes(UPLOADS_PATH . '/photos'),
+            'accomplishments' => $this->directoryStorageBytes(UPLOADS_PATH . '/accomplishments'),
+            'tasks' => $this->directoryStorageBytes(UPLOADS_PATH . '/tasks'),
+        ];
+    }
+
+    private function formatStorage(int $bytes): string
+    {
+        if ($bytes < 1024) return $bytes . ' B';
+        if ($bytes < 1024 * 1024) return number_format($bytes / 1024, 1) . ' KB';
+        if ($bytes < 1024 * 1024 * 1024) return number_format($bytes / 1024 / 1024, 1) . ' MB';
+        return number_format($bytes / 1024 / 1024 / 1024, 2) . ' GB';
+    }
+
+    public function analyticsStorage(): void
+    {
+        Auth::requirePermission('report.view');
+        $bytes = $this->uploadStorageBytes();
+        $breakdown = $this->uploadStorageBreakdown();
+        $this->json(['success' => true, 'bytes' => $bytes, 'formatted' => $this->formatStorage($bytes), 'breakdown' => $breakdown]);
+    }
+
+    private function requireActionPassword(): bool
+    {
+        $password = (string) ($_POST['confirmation_password'] ?? '');
+        $stmt = Database::getInstance()->prepare('SELECT password_hash FROM users WHERE id=? AND status="active"');
+        $stmt->execute([Auth::userId()]);
+        $hash = $stmt->fetchColumn();
+        if ($password === '' || !$hash || !password_verify($password, $hash)) {
+            AuditLogger::log('approval_password_failed', 'positions', null);
+            $this->json(['success'=>false,'error'=>'Incorrect password. The position action was not completed.'],403);
+            return false;
+        }
+        return true;
+    }
     public function analyticsDetails(): void
     {
         Auth::requirePermission('report.view');
@@ -24,6 +84,7 @@ class AdminController extends Controller
             'open_tasks' => ["SELECT t.title label, ta.status value, COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number,'Unassigned') detail FROM task_assignments ta JOIN tasks t ON t.id=ta.task_id LEFT JOIN employees e ON e.id=ta.employee_id LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id WHERE ta.status NOT IN ('Done','Cancelled') ORDER BY t.title LIMIT 1000", []],
             'pds' => ["SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) label, CONCAT(ROUND(COALESCE(SUM(pcs.is_complete),0)/14*100),'%') value, e.employee_number detail FROM employees e LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id LEFT JOIN pds_completion_status pcs ON pcs.employee_id=e.id GROUP BY e.id,label,detail ORDER BY COALESCE(SUM(pcs.is_complete),0) DESC LIMIT 1000", []],
             'review' => ["SELECT a.title label, a.status value, COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) detail FROM accomplishments a JOIN employees e ON e.id=a.employee_id LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id WHERE a.status='For Review' ORDER BY a.submitted_at DESC LIMIT 1000", []],
+            'vacancies' => ["SELECT COALESCE(p.title,'Unspecified position') label, CONCAT_WS(' · ',COALESCE(NULLIF(v.item_number,''),'No item number'),v.status) value, CONCAT_WS(' · ',COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.middle_name,pi.surname,pi.name_extension)),''),e.employee_number,'Previous holder unavailable'),COALESCE(d.name,v.station,'Unassigned'),DATE_FORMAT(v.vacated_on,'%b %e, %Y')) detail FROM vacant_positions v LEFT JOIN positions p ON p.id=v.position_id LEFT JOIN departments d ON d.id=v.department_id LEFT JOIN employees e ON e.id=v.former_employee_id LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id ORDER BY FIELD(v.status,'Vacant','Filled','Cancelled'),v.vacated_on DESC LIMIT 1000", []],
             'retirement' => ["SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) label, CONCAT(TIMESTAMPDIFF(YEAR,pi.birth_date,CURDATE()),' years') value, CONCAT_WS(' · ',e.employee_number,DATE_FORMAT(pi.birth_date,'%b %e, %Y')) detail FROM employees e JOIN pds_personal_info pi ON pi.employee_id=e.id WHERE TIMESTAMPDIFF(YEAR,pi.birth_date,CURDATE()) BETWEEN 60 AND 65 ORDER BY pi.birth_date LIMIT 1000", []],
             'submissions' => ["SELECT a.title label, DATE_FORMAT(a.submitted_at,'%b %e, %Y') value, CONCAT_WS(' · ',COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number),a.status) detail FROM accomplishments a JOIN employees e ON e.id=a.employee_id LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id WHERE a.submitted_at IS NOT NULL ORDER BY a.submitted_at DESC LIMIT 1000", []],
             'gender' => ["SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ',pi.first_name,pi.surname)),''),e.employee_number) label, COALESCE(pi.sex,'Not specified') value, e.employee_number detail FROM employees e LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id ORDER BY value,label LIMIT 1000", []],
@@ -162,6 +223,8 @@ class AdminController extends Controller
             'departments' => (int) $pdo->query('SELECT COUNT(*) FROM departments')->fetchColumn(),
             'openTasks' => (int) $pdo->query("SELECT COUNT(*) FROM task_assignments WHERE status NOT IN ('Done', 'Cancelled')")->fetchColumn(),
             'pendingAccomplishments' => (int) $pdo->query("SELECT COUNT(*) FROM accomplishments WHERE status = 'For Review'")->fetchColumn(),
+            'vacantPositions' => (int) $pdo->query("SELECT COUNT(*) FROM vacant_positions WHERE status = 'Vacant'")->fetchColumn(),
+            'uploadStorage' => $this->formatStorage($this->uploadStorageBytes()),
         ];
 
         $personnelCounts = $pdo->query(
@@ -581,13 +644,19 @@ class AdminController extends Controller
         $perPage = 20;
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $search = trim(Validator::sanitizeString($_GET['q'] ?? ''));
-        $where = '';
+        $vacancyFilter = in_array(($_GET['vacancy'] ?? ''), ['available','occupied'], true) ? $_GET['vacancy'] : '';
+        $salaryFilter = trim(Validator::sanitizeString($_GET['salary_grade'] ?? ''));
+        $conditions = [];
         $params = [];
         if ($search !== '') {
-            $where = ' WHERE p.title LIKE ? OR p.salary_grade LIKE ?';
+            $conditions[] = '(p.title LIKE ? OR p.salary_grade LIKE ?)';
             $term = '%' . $search . '%';
-            $params = [$term, $term];
+            array_push($params, $term, $term);
         }
+        if ($salaryFilter !== '') { $conditions[] = 'p.salary_grade = ?'; $params[] = $salaryFilter; }
+        if ($vacancyFilter === 'available') $conditions[] = 'EXISTS (SELECT 1 FROM vacant_positions vf WHERE vf.position_id=p.id AND vf.status="Vacant")';
+        if ($vacancyFilter === 'occupied') $conditions[] = 'NOT EXISTS (SELECT 1 FROM vacant_positions vf WHERE vf.position_id=p.id AND vf.status="Vacant")';
+        $where = $conditions ? ' WHERE ' . implode(' AND ', $conditions) : '';
         $countStmt = $pdo->prepare('SELECT COUNT(*) FROM positions p' . $where);
         $countStmt->execute($params);
         $total = (int) $countStmt->fetchColumn();
@@ -596,7 +665,9 @@ class AdminController extends Controller
         $offset = ($page - 1) * $perPage;
         $stmt = $pdo->prepare(
             'SELECT p.id, p.title, p.salary_grade,
-                    (SELECT COUNT(*) FROM employees e WHERE e.position_id = p.id) AS employee_count
+                    (SELECT COUNT(*) FROM employees e WHERE e.position_id = p.id) AS employee_count,
+                    (SELECT COUNT(*) FROM vacant_positions v WHERE v.position_id = p.id AND v.status = "Vacant") AS vacant_count,
+                    (SELECT GROUP_CONCAT(COALESCE(NULLIF(v.item_number,""),"No item number") ORDER BY v.vacated_on DESC SEPARATOR " · ") FROM vacant_positions v WHERE v.position_id = p.id AND v.status = "Vacant") AS vacant_items
              FROM positions p
              ' . $where . '
              ORDER BY p.title
@@ -604,6 +675,8 @@ class AdminController extends Controller
         );
         $stmt->execute($params);
         $positions = $stmt->fetchAll();
+        $totalVacancies = (int) $pdo->query('SELECT COUNT(*) FROM vacant_positions WHERE status = "Vacant"')->fetchColumn();
+        $salaryGrades = $pdo->query('SELECT DISTINCT salary_grade FROM positions WHERE salary_grade IS NOT NULL AND salary_grade<>"" ORDER BY salary_grade')->fetchAll(PDO::FETCH_COLUMN);
 
         $this->view('admin', 'positions', [
             'pageTitle' => 'Manage Positions',
@@ -612,6 +685,10 @@ class AdminController extends Controller
             'total' => $total,
             'totalPages' => $totalPages,
             'search' => $search,
+            'totalVacancies' => $totalVacancies,
+            'vacancyFilter' => $vacancyFilter,
+            'salaryFilter' => $salaryFilter,
+            'salaryGrades' => $salaryGrades,
         ]);
     }
 
@@ -619,6 +696,7 @@ class AdminController extends Controller
     {
         Auth::requirePermission('user.manage');
         $this->requireCsrf();
+        if (!$this->requireActionPassword()) return;
 
         $title = Validator::sanitizeString($_POST['title'] ?? '');
         if ($title === '') {
@@ -634,10 +712,37 @@ class AdminController extends Controller
         $this->json(['success' => true, 'message' => 'Position added.']);
     }
 
+    public function showPosition(string $id): void
+    {
+        Auth::requirePermission('user.manage');
+        $positionId = (int) $id;
+        $pdo = Database::getInstance();
+        $positionStmt = $pdo->prepare('SELECT * FROM positions WHERE id=?'); $positionStmt->execute([$positionId]); $position = $positionStmt->fetch();
+        if (!$position) { http_response_code(404); echo 'Position not found.'; return; }
+        $holderStmt = $pdo->prepare('SELECT e.id,e.employee_number,e.date_hired,COALESCE(NULLIF(TRIM(CONCAT_WS(" ",pi.first_name,pi.middle_name,pi.surname,pi.name_extension)),""),e.employee_number) employee_name,d.name department_name,wp.item_number,wp.salary_grade FROM employees e LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id LEFT JOIN departments d ON d.id=e.department_id LEFT JOIN employee_work_profiles wp ON wp.employee_id=e.id WHERE e.position_id=? ORDER BY employee_name');
+        $holderStmt->execute([$positionId]); $holders = $holderStmt->fetchAll();
+        $movementRows = $pdo->query('SELECT pm.*,e.employee_number,COALESCE(NULLIF(TRIM(CONCAT_WS(" ",pi.first_name,pi.middle_name,pi.surname,pi.name_extension)),""),e.employee_number) employee_name FROM personnel_movements pm JOIN employees e ON e.id=pm.employee_id LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id ORDER BY pm.employee_id,pm.effective_date,pm.id')->fetchAll();
+        $history=[];$starts=[];$positionStarts=[];
+        foreach($movementRows as $row){$before=json_decode($row['previous_data'],true)?:[];$after=json_decode($row['new_data'],true)?:[];$employeeId=(int)$row['employee_id'];
+            if((int)($after['position_id']??0)===$positionId){$start=$row['effective_date'];$end=$after['end_date']??null;$starts[$employeeId]=$start;$positionStarts[$employeeId][]=$start;$history[]=['employee_id'=>$employeeId,'employee_name'=>$row['employee_name'],'employee_number'=>$row['employee_number'],'item_number'=>$after['item_number']??null,'start_date'=>$start,'end_date'=>$end,'source'=>$row['movement_type']];}
+            if((int)($before['position_id']??0)===$positionId){for($index=count($history)-1;$index>=0;$index--){if($history[$index]['employee_number']===$row['employee_number']&&!$history[$index]['end_date']){$history[$index]['end_date']=$row['effective_date'];break;}}}
+        }
+        foreach($holders as &$holder){$holder['position_start']=$starts[(int)$holder['id']]??$holder['date_hired'];}unset($holder);
+        $vacancyStmt=$pdo->prepare('SELECT v.*,e.date_hired,e.employee_number,COALESCE(NULLIF(TRIM(CONCAT_WS(" ",pi.first_name,pi.middle_name,pi.surname,pi.name_extension)),""),e.employee_number,"Previous holder unavailable") employee_name FROM vacant_positions v LEFT JOIN employees e ON e.id=v.former_employee_id LEFT JOIN pds_personal_info pi ON pi.employee_id=e.id WHERE v.position_id=? ORDER BY v.vacated_on');$vacancyStmt->execute([$positionId]);$vacancies=$vacancyStmt->fetchAll();
+        foreach($vacancies as $vacancy){if(empty($vacancy['former_employee_id']))continue;$employeeId=(int)$vacancy['former_employee_id'];$end=$vacancy['vacated_on'];$candidateStarts=array_values(array_filter($positionStarts[$employeeId]??[],static fn(string $date):bool=>$date<=$end));$start=$candidateStarts?end($candidateStarts):($vacancy['date_hired']??null);$exists=false;foreach($history as $record){if((int)($record['employee_id']??0)===$employeeId&&$record['end_date']===$end){$exists=true;break;}}if(!$exists)$history[]=['employee_id'=>$employeeId,'employee_name'=>$vacancy['employee_name'],'employee_number'=>$vacancy['employee_number']??'Not available','item_number'=>$vacancy['item_number'],'start_date'=>$start,'end_date'=>$end,'source'=>'Vacated position'];}
+        foreach($holders as $holder){$exists=false;foreach($history as &$record){if((int)($record['employee_id']??0)===(int)$holder['id']&&!$record['end_date']){$record['employee_name']=$holder['employee_name'];$record['employee_number']=$holder['employee_number'];$record['item_number']=$holder['item_number'];$exists=true;break;}}unset($record);if(!$exists)$history[]=['employee_id'=>(int)$holder['id'],'employee_name'=>$holder['employee_name'],'employee_number'=>$holder['employee_number'],'item_number'=>$holder['item_number'],'start_date'=>$holder['position_start'],'end_date'=>null,'source'=>'Current holder'];}
+        usort($history,static fn(array $a,array $b):int=>strcmp((string)($a['start_date']??''),(string)($b['start_date']??'')));
+        $duration = static function(?string $start,?string $end=null): string { if(!$start)return 'Start date not recorded';try{$from=new DateTimeImmutable($start);$to=new DateTimeImmutable($end?:'today');$diff=$from->diff($to);$parts=[];if($diff->y)$parts[]=$diff->y.' year'.($diff->y===1?'':'s');if($diff->m)$parts[]=$diff->m.' month'.($diff->m===1?'':'s');return $parts?implode(', ',$parts):max(0,$diff->days).' day'.($diff->days===1?'':'s');}catch(Throwable){return 'Date unavailable';}};
+        foreach($holders as &$holder)$holder['duration']=$duration($holder['position_start']);unset($holder);
+        foreach($history as &$record)$record['duration']=$duration($record['start_date'],$record['end_date']);unset($record);
+        $this->view('admin','position_show',['pageTitle'=>$position['title'],'position'=>$position,'holders'=>$holders,'history'=>$history,'vacancies'=>$vacancies]);
+    }
+
     public function deletePosition(string $id): void
     {
         Auth::requirePermission('user.manage');
         $this->requireCsrf();
+        if (!$this->requireActionPassword()) return;
 
         $pdo = Database::getInstance();
         $stmt = $pdo->prepare('DELETE FROM positions WHERE id = ?');
