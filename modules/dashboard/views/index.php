@@ -11,17 +11,17 @@ $firstName = explode(' ', trim(Auth::displayName()))[0] ?: 'there';
 $myTaskTotal = array_sum($taskCounts);
 $myAccomplishmentTotal = array_sum($myAccomplishmentCounts);
 ?>
-<section class="launcher-page" aria-labelledby="launcher-title">
+<section class="launcher-page workspace-refresh" aria-labelledby="launcher-title">
     <div class="launcher-hero">
         <div>
             <span class="launcher-eyebrow">HRMS Workspace</span>
             <h1 id="launcher-title">Good day, <?= htmlspecialchars($firstName) ?>.</h1>
-            <p>Choose an application to get started.</p>
+            <p>A little clarity for your workday. Everything you need, in one place.</p>
         </div>
         <div class="launcher-date"><span><?= htmlspecialchars(date('l')) ?></span><strong><?= htmlspecialchars(date('M j')) ?></strong></div>
     </div>
 
-    <div class="launcher-grid">
+    <div class="workspace-overview">
             <a class="profile-app-card" href="<?= BASE_URL ?>/profile" aria-label="Open my profile">
                 <span class="profile-app-identity">
                     <span class="profile-app-photo"><?php if (!empty($dashboardProfile['photo_id'])): ?><img src="<?= BASE_URL ?>/photo/<?= UrlId::encode((int) $dashboardProfile['photo_id']) ?>" alt="<?= htmlspecialchars($dashboardProfile['display_name'] ?? 'Profile') ?>"><?php else: ?><?= htmlspecialchars(strtoupper(substr($dashboardProfile['display_name'] ?? Auth::displayName() ?: '?', 0, 1))) ?><?php endif; ?><i aria-hidden="true"></i></span>
@@ -37,6 +37,31 @@ $myAccomplishmentTotal = array_sum($myAccomplishmentCounts);
                     <span class="profile-app-open">View profile <b aria-hidden="true">&rarr;</b></span>
                 </span>
             </a>
+    <div class="launcher-lower-grid">
+        <section class="launcher-panel glass" aria-labelledby="quick-status-title">
+            <div class="launcher-panel-heading"><div><span class="launcher-eyebrow">At a glance</span><h2 id="quick-status-title">Your workspace</h2></div><a href="<?= BASE_URL ?>/tasks">View tasks &rarr;</a></div>
+            <div class="launcher-stats">
+                <div><strong><?= (int) ($taskCounts['Open'] ?? 0) ?></strong><span>Open tasks</span></div>
+                <div><strong><?= (int) ($taskCounts['In Progress'] ?? 0) ?></strong><span>In progress</span></div>
+                <div><strong><?= (int) ($taskCounts['For Review'] ?? 0) ?></strong><span>For review</span></div>
+                <div><strong><?= (int) ($myAccomplishmentCounts['Approved'] ?? 0) ?></strong><span>Approved</span></div>
+            </div>
+        </section>
+
+        <section class="launcher-panel glass" aria-labelledby="recent-title">
+            <div class="launcher-panel-heading"><div><span class="launcher-eyebrow">Updates</span><h2 id="recent-title">Recent notifications</h2></div></div>
+            <div class="launcher-notifications">
+                <?php foreach (array_slice($notifications, 0, 3) as $notification): ?>
+                    <a class="launcher-notification notification-link" data-notification-id="<?= (int) $notification['id'] ?>" href="<?= htmlspecialchars($notification['link'] ?: '#') ?>"><span class="status-dot"></span><span><?= htmlspecialchars($notification['message']) ?><small><?= htmlspecialchars($notification['created_at']) ?></small></span></a>
+                <?php endforeach; ?>
+                <?php if (!$notifications): ?><p class="launcher-empty">You are all caught up.</p><?php endif; ?>
+            </div>
+        </section>
+    </div>
+    </div>
+
+    <div class="workspace-section-heading"><div><span class="launcher-eyebrow">Your toolkit</span><h2>Applications</h2></div><span>Make room for great work.</span></div>
+    <div class="launcher-grid">
 
         <a class="launcher-app launcher-app-violet" href="<?= BASE_URL ?>/pds">
             <span class="launcher-app-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
@@ -83,7 +108,7 @@ $myAccomplishmentTotal = array_sum($myAccomplishmentCounts);
         <?php endif; ?>
 
         <a class="launcher-app launcher-app-violet" href="<?= BASE_URL ?>/ai">
-            <span class="launcher-app-icon" aria-hidden="true">✦</span><span class="launcher-app-copy"><strong>HRMS AI Assistant</strong><small>Ask your connected Llama model</small></span><span class="launcher-app-arrow" aria-hidden="true">&rarr;</span>
+            <span class="launcher-app-icon" aria-hidden="true">✦</span><span class="launcher-app-copy"><strong>AURA Assistant</strong><small>A helping hand for questions and ideas</small></span><span class="launcher-app-arrow" aria-hidden="true">&rarr;</span>
         </a>
 
         <a class="launcher-app launcher-app-blue" href="<?= BASE_URL ?>/settings?embed=1" data-settings-modal-open>
@@ -130,27 +155,7 @@ $myAccomplishmentTotal = array_sum($myAccomplishmentCounts);
         <?php endif; ?>
     </div>
 
-    <div class="launcher-lower-grid">
-        <section class="launcher-panel glass" aria-labelledby="quick-status-title">
-            <div class="launcher-panel-heading"><div><span class="launcher-eyebrow">At a glance</span><h2 id="quick-status-title">Your workspace</h2></div><a href="<?= BASE_URL ?>/tasks">View tasks &rarr;</a></div>
-            <div class="launcher-stats">
-                <div><strong><?= (int) ($taskCounts['Open'] ?? 0) ?></strong><span>Open tasks</span></div>
-                <div><strong><?= (int) ($taskCounts['In Progress'] ?? 0) ?></strong><span>In progress</span></div>
-                <div><strong><?= (int) ($taskCounts['For Review'] ?? 0) ?></strong><span>For review</span></div>
-                <div><strong><?= (int) ($myAccomplishmentCounts['Approved'] ?? 0) ?></strong><span>Approved</span></div>
-            </div>
-        </section>
 
-        <section class="launcher-panel glass" aria-labelledby="recent-title">
-            <div class="launcher-panel-heading"><div><span class="launcher-eyebrow">Updates</span><h2 id="recent-title">Recent notifications</h2></div></div>
-            <div class="launcher-notifications">
-                <?php foreach (array_slice($notifications, 0, 3) as $notification): ?>
-                    <a class="launcher-notification notification-link" data-notification-id="<?= (int) $notification['id'] ?>" href="<?= htmlspecialchars($notification['link'] ?: '#') ?>"><span class="status-dot"></span><span><?= htmlspecialchars($notification['message']) ?><small><?= htmlspecialchars($notification['created_at']) ?></small></span></a>
-                <?php endforeach; ?>
-                <?php if (!$notifications): ?><p class="launcher-empty">You are all caught up.</p><?php endif; ?>
-            </div>
-        </section>
-    </div>
 </section>
 
 <nav class="dashboard-tabbar glass-strong" aria-label="Dashboard quick navigation">
