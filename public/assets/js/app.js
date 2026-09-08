@@ -53,7 +53,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-record-protected]').forEach(region => {
         if (region.dataset.recordUnlocked === 'true') return;
         region.classList.add('record-is-locked');
-        region.querySelectorAll('input, select, textarea, button').forEach(control => { control.disabled = true; });
+        region.querySelectorAll('input, select, textarea, button').forEach(control => {
+            if (control.matches('[data-record-photo-trigger]')) return;
+            control.disabled = true;
+        });
     });
     document.querySelectorAll('[data-record-unlock-action]').forEach(button => button.addEventListener('click', async () => {
         const banner = button.closest('[data-record-lock-banner]');

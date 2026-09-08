@@ -1,4 +1,36 @@
 /* Dashboard and application library. Uses the user's appearance palette. */
+.employee-id-card.reference-id { width:100%; max-width:420px; min-height:0; margin:auto; padding:0; border:8px solid #f4f2ec; border-radius:25px; background:#fffdf6; color:#292b27; font-family:Georgia,'Times New Roman',serif; box-shadow:0 16px 40px #19243a20,inset 0 0 0 1px #00000010; }
+.reference-id-top { position:relative; display:flex; flex-direction:column; align-items:flex-start; min-height:380px; padding:1.7rem 24% 1rem 1.4rem; background:linear-gradient(115deg,#ffe875,#ffdd39 75%,#f9d232); }
+.reference-id-seal { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.4rem; width:125px; height:125px; max-width:100%; border:3px double #46536d; border-radius:50%; background:#fffdf4; color:#34446b; text-align:center; }
+.reference-id-seal { overflow:hidden; border:0; background:#fff; }
+.reference-id-seal img { display:block; width:100%; height:100%; object-fit:cover; }
+.reference-id-name { margin-top:1.5rem; max-width:100%; text-transform:uppercase; overflow-wrap:anywhere; }
+.reference-id-name h2 { margin:0; color:#292b27; font-family:inherit; font-size:clamp(1.7rem,3vw,2.6rem); line-height:1.05; letter-spacing:-.04em; }
+.reference-id-name > strong { display:block; font-size:1.15rem; line-height:1.2; margin-top:.25rem; }
+.reference-id-department { margin:1.2rem 0 1.6rem; font-size:.82rem; font-weight:600; line-height:1.45; overflow-wrap:anywhere; }
+.reference-id-position { position:absolute; top:1.5rem; right:.7rem; bottom:3rem; writing-mode:vertical-rl; transform:rotate(180deg); text-align:center; text-transform:uppercase; font-size:clamp(1.15rem,2.5vw,1.8rem); line-height:1.15; max-width:21%; overflow-wrap:anywhere; }
+.reference-id-number { margin:auto 0 0; padding-top:.5rem; font-size:1rem; line-height:1.3; overflow-wrap:anywhere; }
+.reference-id-bottom { position:relative; display:grid; grid-template-columns:1fr 1.15fr; align-items:end; min-height:205px; background:#fffdf6; }
+.reference-id-office { align-self:start; grid-column:1; padding:1rem .5rem 0 1rem; text-align:center; text-transform:uppercase; overflow-wrap:anywhere; }
+.reference-id-office strong { display:block; font-size:.8rem; line-height:1.2; }
+.reference-id-office > span { display:block; margin-top:.4rem; font-size:.65rem; }
+.reference-id-brand { grid-column:1; padding:1rem; color:#235978; }
+.reference-id-brand > strong { font-family:var(--font-sans); font-size:2rem; font-weight:800; letter-spacing:-.07em; }
+.reference-id-brand > strong > span { color:#c34343; }
+.reference-id-brand > small { display:block; font-size:.55rem; line-height:1.3; text-transform:uppercase; }
+.reference-id .profile-photo-form { grid-column:2; grid-row:1 / span 2; align-self:end; min-width:0; padding:.5rem .5rem .7rem 0; }
+.reference-id .profile-photo-control { width:100%; display:block; }
+.reference-id .profile-photo { display:block; width:100%; height:175px; margin:0 0 .5rem; border:0; border-radius:0; object-fit:cover; object-position:top center; }
+.reference-id .profile-photo-placeholder { display:grid; place-items:center; background:#eeeae0; color:#747268; font-size:3rem; }
+.reference-id .profile-photo-edit { right:4px; bottom:8px; border-color:#fff; background:#fff; color:#235978; }
+.reference-id .profile-photo-button { color:#235978; font-family:var(--font-sans); min-height:36px; }
+.reference-id .profile-photo-form > small { display:block; color:#62635d; font-family:var(--font-sans); font-size:.5rem; text-align:center; }
+.reference-id-tools { display:flex; align-items:center; gap:1rem; margin:1rem auto 0; max-width:420px; padding:.8rem; border:1px solid var(--glass-border-soft); border-radius:16px; background:var(--glass-bg-medium); }
+.reference-id-tools .employee-id-qr { padding:.3rem; background:#fff; border-radius:8px; }
+.reference-id-tools .employee-id-qr img { display:block; width:70px; height:70px; }
+.reference-id-tools strong,.reference-id-tools small { display:block; }
+.reference-id-tools strong { font-size:.8rem; }.reference-id-tools small { margin-top:.3rem; color:var(--text-secondary); font-size:.7rem; }
+@media (max-width:380px) { .reference-id-top { padding-left:1rem; }.reference-id-seal { width:105px; height:105px; }.reference-id-name > strong { font-size:1rem; }.reference-id-brand { padding:.7rem; } }
 .header-home-button { display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; gap:.4rem; min-height:44px; padding:0 .65rem; border:1px solid var(--glass-border-soft); border-radius:13px; color:var(--text-secondary); background:var(--glass-bg-light); text-decoration:none; font-size:.75rem; font-weight:600; }
 .header-home-button svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linejoin:round; }
 .header-home-button:hover,.header-home-button[aria-current="page"] { color:var(--accent-blue); border-color:var(--accent-blue); }

@@ -20,10 +20,20 @@ $fullName = trim(($info['first_name'] ?? '') . ' ' . ($info['middle_name'] ?? ''
 <?php $recordLockScope = 'profile'; require MODULES_PATH . '/shared/views/record_lock.php'; ?>
 <div class="profile-layout" data-record-protected data-record-unlocked="<?= $isUnlocked ? 'true' : 'false' ?>">
     <aside class="profile-summary">
-        <section class="employee-id-card" aria-label="Employee identification card">
-            <div class="employee-id-pattern"></div>
-            <header class="employee-id-header"><span class="employee-id-mark">H</span><span><small>Employee workspace</small><strong>Profile summary</strong></span></header>
-            <div class="employee-id-body">
+        <section class="employee-id-card reference-id" aria-label="Employee identification card">
+            <div class="reference-id-top">
+                <div class="reference-id-seal"><img src="<?= BASE_URL ?>/assets/images/deped-logo.jpeg" alt="Department of Education — Republic of the Philippines"></div>
+                <div class="reference-id-name">
+                    <h2><?= htmlspecialchars(($info['surname'] ?? '') ?: $fullName) ?></h2>
+                    <strong><?= htmlspecialchars(trim(($info['first_name'] ?? '') . ' ' . (!empty($info['middle_name']) ? mb_substr($info['middle_name'], 0, 1) . '.' : '') . ' ' . ($info['name_extension'] ?? ''))) ?></strong>
+                </div>
+                <p class="reference-id-department"><?= htmlspecialchars($account['department_name'] ?? 'Department not assigned') ?></p>
+                <div class="reference-id-position"><?= htmlspecialchars($account['position_title'] ?? 'Position not assigned') ?></div>
+                <p class="reference-id-number">ID NO. <?= htmlspecialchars($account['employee_number']) ?></p>
+            </div>
+            <div class="reference-id-bottom">
+                <div class="reference-id-office"><strong><?= htmlspecialchars($account['department_name'] ?? 'Employee workspace') ?></strong><span><?= htmlspecialchars($account['employment_status']) ?> employee</span></div>
+                <div class="reference-id-brand"><strong>HR<span>MS</span></strong><small>Human Resource<br>Management System</small></div>
                 <form class="profile-photo-form" id="profile-photo-form">
                     <label class="profile-photo-control" for="profile-photo-input" title="Change profile picture">
                         <?php if ($photo): ?>
@@ -34,21 +44,12 @@ $fullName = trim(($info['first_name'] ?? '') . ' ' . ($info['middle_name'] ?? ''
                         <span class="profile-photo-edit" aria-hidden="true">&#128247;</span>
                     </label>
                     <input type="file" id="profile-photo-input" name="photo" accept="image/jpeg,image/png,image/webp" hidden>
-                    <button type="button" class="profile-photo-button" id="profile-photo-button">Change photo</button>
+                    <button type="button" class="profile-photo-button" id="profile-photo-button" data-record-photo-trigger><?= $isUnlocked ? 'Change photo' : 'Unlock to change photo' ?></button>
                     <small>JPG, PNG or WebP &middot; up to 5 MB</small>
                 </form>
-                <div class="employee-id-identity">
-                    <span class="employee-id-label">My profile</span>
-                    <h1><?= htmlspecialchars($fullName) ?></h1>
-                    <p><?= htmlspecialchars($account['position_title'] ?? 'Position not assigned') ?></p>
-                    <strong class="employee-id-number">Employee No. <?= htmlspecialchars($account['employee_number']) ?></strong>
-                </div>
-            </div>
-            <div class="employee-id-footer">
-                <div><span>Department</span><strong><?= htmlspecialchars($account['department_name'] ?? 'Not assigned') ?></strong><small><?= htmlspecialchars($account['employment_status']) ?> employee</small></div>
-                <div class="employee-id-qr"><img src="<?= htmlspecialchars($qrDataUri) ?>" alt="QR code for employee <?= htmlspecialchars($account['employee_number']) ?>"><small>Employee QR</small></div>
             </div>
         </section>
+        <div class="reference-id-tools"><div class="employee-id-qr"><img src="<?= htmlspecialchars($qrDataUri) ?>" alt="QR code for employee <?= htmlspecialchars($account['employee_number']) ?>"></div><div><strong>Employee QR</strong><small>Scan to view work details</small></div></div>
         <p class="employee-id-privacy"><span>&#128274;</span> QR contains your employee number and public work details only. Internal system user IDs are never included.</p>
     </aside>
 
@@ -165,7 +166,16 @@ $fullName = trim(($info['first_name'] ?? '') . ' ' . ($info['middle_name'] ?? ''
 <script>
 const photoForm = document.getElementById('profile-photo-form');
 const photoInput = document.getElementById('profile-photo-input');
-document.getElementById('profile-photo-button').addEventListener('click', () => photoInput.click());
+const requestPhotoChange = event => {
+    event.preventDefault();
+    if (photoForm.closest('[data-record-protected]').dataset.recordUnlocked !== 'true') {
+        document.querySelector('[data-record-unlock-action]')?.click();
+        return;
+    }
+    if (!document.getElementById('profile-photo-button').disabled) photoInput.click();
+};
+document.getElementById('profile-photo-button').addEventListener('click', requestPhotoChange);
+photoForm.querySelector('.profile-photo-control').addEventListener('click', requestPhotoChange);
 photoInput.addEventListener('change', async () => {
     if (!photoInput.files.length) return;
     const file = photoInput.files[0];
