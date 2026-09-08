@@ -127,6 +127,9 @@ if (Auth::check()) {
                 <?php if (!$isDashboard): ?>
                     <button class="app-back-button" id="app-back-button" type="button" aria-label="Go back"><span aria-hidden="true">&larr;</span><b>Back</b></button>
                 <?php endif; ?>
+                <?php if (!$isDashboard): ?>
+                    <a class="header-home-button" href="<?= BASE_URL ?>/dashboard" aria-label="Home dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10H15v-6H9v6H3Z"/></svg><span>Home</span></a>
+                <?php endif; ?>
                 <div class="header-context"><span class="header-workspace"><span class="header-brand-dot"></span> HRMS Workspace</span><div class="header-title"><?= htmlspecialchars($pageTitle) ?></div></div>
             </div>
 

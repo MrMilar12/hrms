@@ -1,4 +1,9 @@
 /* Dashboard and application library. Uses the user's appearance palette. */
+.header-home-button { display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; gap:.4rem; min-height:44px; padding:0 .65rem; border:1px solid var(--glass-border-soft); border-radius:13px; color:var(--text-secondary); background:var(--glass-bg-light); text-decoration:none; font-size:.75rem; font-weight:600; }
+.header-home-button svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linejoin:round; }
+.header-home-button:hover,.header-home-button[aria-current="page"] { color:var(--accent-blue); border-color:var(--accent-blue); }
+.header-home-button:focus-visible { outline:2px solid var(--accent-blue); outline-offset:2px; }
+@media (max-width:760px) { .header-home-button { width:44px; padding:0; }.header-home-button span { display:none; } }
 .aura-refresh.ai-page { display:block; min-height:0; padding:1rem 0 2rem; }
 .aura-refresh .ai-shell { width:100%; max-width:980px; min-height:0; padding:0; border:1px solid var(--glass-border-soft); border-radius:28px; background:var(--glass-bg-medium); box-shadow:0 16px 60px rgba(15,23,42,.05); }
 .aura-refresh .ai-shell::before { display:none; }
